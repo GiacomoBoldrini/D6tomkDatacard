@@ -1,7 +1,7 @@
 # D6tomkDatacard
 
-Framework to convert the output of MG5 generation with EFT components in readable histos for mkDatacards.py in the Latino framework.
-This framework allows to create histograms allowing the exploitation of different combine physics model under the AnalyticAnomalousCoupling repo.
+Tools to convert the output of MG5 generation with EFT components in readable histos for mkDatacards.py in the Latino framework.
+This tool allows to create histograms compatible with the new combine models for EFT fitting in the AnalyticAnomalousCoupling repo.
 
 Useful links:
 * Latinos: https://github.com/latinos/LatinoAnalysis 
@@ -108,6 +108,12 @@ before `mkDCInputs.py`
 ---
 
 # To Do
+
+- Add cuts smartly
+- Optimize some sections
+- Skim the cfg file
+- Add "running on batch" option
+- Add intelligent ways of generating AC-DC combine histos for different samples simultaneously
 
 ---
 
