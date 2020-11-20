@@ -98,9 +98,22 @@ Inspect the `datacard` folder. It has a subfolder with you process name and many
 Each subfolder has a datacard with the EFT components according to the model you chose and to the AnalyticAnomalousCoupling nomenclature (e.g. lin_, quad_ sm_lin_quad_ etc...).
 You will find the shapes in the `shape` folder.
 
+You can also use `mkPlot.py`, pay attention to the grouping in the `cfg`file.
+
+`mkPlot.py --pycfg=configuration_SSWW_EFTNeg.py --inputFile=rootFile/cW_cHWB.root`
+
+You should see the histograms stacked for the model you specified. If you want to merge the contributions you can act on the grouping options in the `cfg` file,
+before `mkDCInputs.py`
+
+---
+
+# To Do
+
+---
+
+# Suggestions are welcome
 
 
-# The End
 
 
 
