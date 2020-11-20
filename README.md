@@ -69,6 +69,30 @@ They work but they are not fully reliable due to the enormous flexibility of the
 
 ---
 
+# File names convention
+
+Folders under the `ntuples/folder` config section do not need to be sorted. However the files should have a definite convention in order for the algorithms to pickup the ones from the right process, component and operator. File ntuple names should have the following syntax:
+
+```
+folder + "/*_" + process + "_" + op + "*.root"
+folder + "/*_" + process + "_{}_{}_".format(op[0], op[1]) + "*.root"
+```
+
+process may be something like "SSWW" and should match the one you are giving under the config section `general/sample`. `op` is the operator name, should match the ones gave in the config section `eft/operators`. The order of `op[0],op[1]` is not important, the script will automatically detect the combination.
+Lastly the file name should specify if it contains events simulating the SM, linear, quadratic or interference components. These will have the postfix
+`SM,LI,QU,IN` respectively (no operator specification for the SM sample).
+
+Some examples of file names:
+
+```
+ntuple_OSWW_SM.root #Opposite sign WW process, SM component
+ntuple_OSWWQCD_cHl1_QU.root # Opposite sign WW QCD quadratic component of op cHl1
+ntuple_SSWW_cHq3_cll1_IN.root # Same sign WW interference term between cHq3 and cll1
+ntuple_SSWW_cHWB_LI.root # Same sign WW linear term of operator cHWB_LI
+```
+
+---
+
 # makeDummies.py
 
 This is a collection of functions that creates dummy configuration files for mkDatacards.py. Not reliable but a good starting point for more complex use-cases.
