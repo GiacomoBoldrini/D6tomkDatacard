@@ -1,5 +1,30 @@
 import os
 import sys
+from collections import OrderedDict
+
+def groupSinglets(comp_name):
+    d = { "sm": "SM",
+          "lin": "L ",
+          "quad": "Q ",
+          "lin_mixed": "M ",
+          "sm_lin_quad": "SM+L+Q ",
+          "quad_mixed": " Q+Q+M ",
+          "sm_lin_quad_mixed": "SM+L+L+Q+Q+M ",
+        }
+
+    type_ = comp_name.split("_c")[0]
+    newName = d[type_]
+
+    if type_ != "sm": #need to account for operators here
+        ops = comp_name.split(type_ + "_")[1]
+        if len(ops.split("_")) == 2: 
+            ops = ops.split("_")
+            newName += ops[0] + "_" + ops[1]
+        else:
+            newName += ops
+
+    return newName
+
 
 def isBSM(sample):
     if any(i in sample for i in ["sm_", "quad_", "lin_"]):
@@ -39,11 +64,17 @@ def makePlot(h_dict, model, config, outdir):
     group = []
     g_colors = []
 
+    if config.has_option("d_plot", "isSignal"): 
+        isSignal = config.getlist("d_plot", "isSignal")
+        comp = [i.split(":")[0] for i in isSignal]
+        val = [i.split(":")[1] for i in isSignal]
+        isSignal = dict((c,v) for c,v in zip(comp, val))
+
+    else:
+        isSignal = {}
+
     if config.has_option("d_plot", "group"): group = config.getlist("d_plot", "group")
     if config.has_option("d_plot", "g_colors"): g_colors = [int(col) for col in config.getlist("d_plot", "g_colors")]
-
-
-    if len(g_colors) != len(group): sys.exit("[ERROR] Group color do not match group len ...")
 
     for sample in h_dict:
         first_var = h_dict[sample].keys()[0]
@@ -69,8 +100,11 @@ def makePlot(h_dict, model, config, outdir):
 
                 group_these[g_name] = {}
 
+                if g_name in isSignal.keys(): sig_val = isSignal[g_name]
+                else: sig_val = 2
+
                 group_these[g_name]['nameHR'] = "'{}'".format(g_name)
-                group_these[g_name]['isSignal'] = 0
+                group_these[g_name]['isSignal'] = sig_val
                 group_these[g_name]['color'] = g_colors[idx]
                 group_these[g_name]['samples'] = []
                 components = h_dict[sample][h_dict[sample].keys()[0]].keys() #they are equal forall variables
@@ -78,14 +112,31 @@ def makePlot(h_dict, model, config, outdir):
                 for comp in components:
                     if isBSM(comp): group_these[g_name]['samples'].append(comp)
 
+            elif g_.split(":")[1] == "all":
+                for i,key in enumerate(structure):
+                    leg_name = groupSinglets(key)
+                    group_these[key] = {}
+
+                    if key in isSignal.keys(): sig_val = isSignal[key]
+                    else: sig_val = 2
+
+                    group_these[key]['nameHR'] = "'{}'".format(leg_name)
+                    group_these[key]['isSignal'] = sig_val
+                    group_these[key]['color'] = colors[i]
+                    group_these[key]['samples'] = [key]
+
+
             else:
                 g_name = g_.split(":")[0]
                 g_list = [str(i) for i in (g_.split(":")[1])[1:-1].split(" ")]
 
                 group_these[g_name] = {}
 
+                if g_name in isSignal.keys(): sig_val = isSignal[g_name]
+                else: sig_val = 2
+
                 group_these[g_name]['nameHR'] = "'{}'".format(g_.split(":")[0])
-                group_these[g_name]['isSignal'] = 0
+                group_these[g_name]['isSignal'] = sig_val
                 group_these[g_name]['color'] = g_colors[idx]
                 group_these[g_name]['samples'] = []
 
@@ -99,6 +150,9 @@ def makePlot(h_dict, model, config, outdir):
 
 
             if len(group_these.keys()) != 0:
+
+                #sort the dict to allow right plotting
+                group_these = OrderedDict(sorted(group_these.items(), key=lambda t: t[1]["isSignal"], reverse=True))
 
                 for key in group_these.keys():
                     f.write('groupPlot["{}"]  = {} \n'.format(key, "{"))
@@ -119,11 +173,14 @@ def makePlot(h_dict, model, config, outdir):
 
         for i,key in enumerate(structure):
 
+            if key in isSignal.keys(): sig_val = isSignal[key]
+            else: sig_val = 2
+
             if i > len(colors): sys.exit("[ERROR]: Colors not sufficient, add more...")
 
             f.write('plot["{}"]  = {} \n'.format(key, "{"))
             f.write("        'color' : {}, \n".format(colors[i]))
-            f.write("        'isSignal' : 0, \n")
+            f.write("        'isSignal' : {}, \n".format(sig_val))
             f.write("        'isData' : 0, \n")
             f.write("        'scale' : 1, \n")
             f.write("{}\n".format("}"))
@@ -436,14 +493,13 @@ def makeNuisances(h_dict, model, config, outdir):
     samples = [i[1:-1].split("|") for i in config.getlist("d_nuisances", "samples")]
     samples = [list(map(str, sublist)) for sublist in samples]
     types = config.getlist("d_nuisances", "types") 
-    
-    nd = makeNuisDict(defname, name, types, samples)
-
-    if not check_Nuisances(nd, h_dict):
-        sys.exit("[ERROR] Nuisances specified in cfg file are not present in components dict ... Check inputs")
         
 
     for sample in h_dict:
+
+        nd = makeNuisDict(defname, name, types, samples)
+        if not check_Nuisances(nd, h_dict):
+            sys.exit("[ERROR] Nuisances specified in cfg file are not present in components dict ... Check inputs")
 
         if bool(config.get("d_nuisances", "propagate")):
             nd = propagateNuis(h_dict[sample], nd)

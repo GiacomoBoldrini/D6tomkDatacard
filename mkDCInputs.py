@@ -90,8 +90,10 @@ def histosToModel(histo_dict, model_type = "EFT"):
                 mixed = [i for i in components if "IN" in i]
                 sm = [i for i in components if "SM" in i]
 
-                if len(mixed) != mt.factorial(len(linear)) / (mt.factorial(2) * mt.factorial(len(linear)-2)) or len(sm) != 1: 
-                    sys.exit("[ERROR] errors in the combinatorial, check inputs ...")
+                #Checks that everything is right
+                if len(linear) != 1:
+                    if len(mixed) != mt.factorial(len(linear)) / (mt.factorial(2) * mt.factorial(len(linear)-2)) or len(sm) != 1: 
+                        sys.exit("[ERROR] errors in the combinatorial, Probably you are missing some interference samples for the op you specified ...")
 
                 eft_neg_dict[sample][var][sm[0]] = histo_dict[sample][var][sm[0]]
 
@@ -119,7 +121,7 @@ def histosToModel(histo_dict, model_type = "EFT"):
                     new_sm.Add(histo_dict[sample][var]["IN_{}_{}".format(o_c[0], o_c[1])])
                     eft_neg_dict[sample][var]["SM_LI_QU_INT_{}_{}".format(o_c[0], o_c[1])] = new_sm
         
-        return cleanNames(eft_neg_dict)
+        return cleanNames(deepcopy(eft_neg_dict))
 
 
     if model_type == "EFTNeg-alt":
@@ -140,8 +142,11 @@ def histosToModel(histo_dict, model_type = "EFT"):
                 quadratic = [i for i in components if "QU" in i]
                 mixed = [i for i in components if "IN" in i]
                 sm = [i for i in components if "SM" in i]
-                if len(mixed) != mt.factorial(len(linear)) / (mt.factorial(2) * mt.factorial(len(linear)-2)) or len(sm) != 1: 
-                    sys.exit("[ERROR] errors in the combinatorial, check inputs ...")
+
+                #Checks that everything is right
+                if len(linear) != 1:
+                    if len(mixed) != mt.factorial(len(linear)) / (mt.factorial(2) * mt.factorial(len(linear)-2)) or len(sm) != 1: 
+                        sys.exit("[ERROR] errors in the combinatorial, Probably you are missing some interference samples for the op you specified ...")
 
                 eft_negalt_dict[sample][var][sm[0]] = histo_dict[sample][var][sm[0]]
 
@@ -166,7 +171,7 @@ def histosToModel(histo_dict, model_type = "EFT"):
                     new_sm.Add(histo_dict[sample][var]["IN_{}_{}".format(o_c[0], o_c[1])])
                     eft_negalt_dict[sample][var]["QU_INT_{}_{}".format(o_c[0], o_c[1])] = new_sm
 
-        return cleanNames(eft_negalt_dict)
+        return cleanNames(deepcopy(eft_negalt_dict))
 
 
 def setNamesToKeys(h_dict):
@@ -199,22 +204,41 @@ def write(h_dict, outname = "out.root"):
     f_out.Close()
 
 
+def redemensionOpinput(config):
+    sample = config.getlist("general", "sample")
+    ops = config.getlist("eft", "operators")
+
+    ops = [i[1:-1].split(":") for i in ops]
+    ops = [list(map(str, sublist)) for sublist in ops]
+
+    if len(sample) > len(ops) and len(ops) == 1:
+        return ops*len(samples)
+
+    elif len(sample) > len(ops) and len(ops) == 1:
+        sys.exit("[ERROR] Ambiguity in the definition of samples and op per sample")
+    
+    else:
+        return ops
+
+
 def retireve_samples(config):
 
     print("[INFO] Retrieving samples ...")
     section = "ntuples"
     sample = config.getlist("general", "sample")
     folders = config.getlist(section, "folder")
-    ops = config.getlist("eft", "operators")
-    int_ = len(ops) > 1
-
-    comb = list(combinations(ops, 2))
-    comb2 = [(i[1],i[0]) for i in comb] #reverse in case of wrong ordering
+    #ops = config.getlist("eft", "operators")
+    ops_ = redemensionOpinput(config)
 
     file_dict = dict.fromkeys(sample)
 
-    for s in sample:
+    for s,ops in zip(sample, ops_):
         file_dict[s] = {}
+
+        int_ = len(ops) > 1
+
+        comb = list(combinations(ops, 2))
+        comb2 = [(i[1],i[0]) for i in comb] #reverse in case of wrong ordering
 
         #scan simple ops
         for op in ops:
@@ -241,18 +265,18 @@ def retireve_samples(config):
                     files1 = glob(folder + "/*_" + s + "_{}_{}_".format(c1[0], c1[1]) + "*.root")
                     files2 = glob(folder + "/*_" + s + "_{}_{}_".format(c2[0], c2[1]) + "*.root")
 
-
                     if len(files1) != 0 and len(files2) == 0: 
                         files = files1
                         c = c1
                         del file_dict[s]["IN_{}_{}".format(c2[0], c2[1])]
-                    else: 
+                    elif len(files1) == 0 and len(files2) != 0: 
                         files = files2
                         c = c2
                         del file_dict[s]["IN_{}_{}".format(c1[0], c1[1])]
+                    else:
+                        continue
 
                     for file_ in files:
-
                         if "IN" in file_: file_dict[s]["IN_{}_{}".format(c[0], c[1])].append(file_)
 
 
@@ -381,29 +405,33 @@ if __name__ == "__main__":
 
     if len(models) == 0: sys.exit("[ERROR] No model specified, exiting ...")
 
-    mkdir(outdir)
-
     fd = retireve_samples(config)
     base_histo = makeHistos(config, fd)
+    
+    for process in base_histo.keys():
 
-    for mod in models:
+        #Saving, discriminating processes
+        outfile_path = outdir + process
+        mkdir(outfile_path)
+        
+        for mod in models:
 
-        mkdir(outdir+ "/" + mod)
-        mkdir(outdir+ "/" + mod + "/rootFile")
-        model_dict = histosToModel(base_histo, model_type=mod)
-        write(model_dict, outname = outdir+ "/" + mod + "/rootFile/" + outfile)
+            mod_path = outfile_path + "/" + mod
+            mkdir(mod_path)
+            mkdir(mod_path + "/rootFile/")
 
-        cfg_folder = outdir + "/" + mod 
-        mkdir(cfg_folder)
-        print("[INFO] Generating dummies ...")
-        if bool(config.get("d_structure", "makeDummy")): makeStructure(model_dict, mod, cfg_folder)
-        if bool(config.get("d_plot", "makeDummy")): makePlot(model_dict, mod, config, cfg_folder)
-        if bool(config.get("d_samples", "makeDummy")): makeSamples(model_dict, mod, config, cfg_folder)
-        if bool(config.get("d_configuration", "makeDummy")): makeConfiguration(model_dict, mod, config, cfg_folder)
-        if bool(config.get("d_alias", "makeDummy")): makeAliases(model_dict, mod, cfg_folder)
-        if bool(config.get("d_cuts", "makeDummy")): makeCuts(model_dict, mod, cfg_folder)
-        if bool(config.get("d_variables", "makeDummy")): makeVariables(model_dict, mod, config, cfg_folder)
-        if bool(config.get("d_nuisances", "makeDummy")): makeNuisances(model_dict, mod, config, cfg_folder)
+            model_dict = histosToModel(dict((proc,base_histo[proc]) for proc in base_histo.keys() if proc == process), model_type=mod)
+            write(model_dict, outname = mod_path + "/rootFile/" + outfile)
+
+            print("[INFO] Generating dummies ...")
+            if bool(config.get("d_structure", "makeDummy")): makeStructure(model_dict, mod, mod_path)
+            if bool(config.get("d_plot", "makeDummy")): makePlot(model_dict, mod, config, mod_path)
+            if bool(config.get("d_samples", "makeDummy")): makeSamples(model_dict, mod, config, mod_path)
+            if bool(config.get("d_configuration", "makeDummy")): makeConfiguration(model_dict, mod, config, mod_path)
+            if bool(config.get("d_alias", "makeDummy")): makeAliases(model_dict, mod, mod_path)
+            if bool(config.get("d_cuts", "makeDummy")): makeCuts(model_dict, mod, mod_path)
+            if bool(config.get("d_variables", "makeDummy")): makeVariables(model_dict, mod, config, mod_path)
+            if bool(config.get("d_nuisances", "makeDummy")): makeNuisances(model_dict, mod, config, mod_path)
 
     
     print("[INFO] @Done ...")
