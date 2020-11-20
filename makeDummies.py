@@ -1,6 +1,12 @@
 import os
 import sys
 
+def isBSM(sample):
+    if any(i in sample for i in ["sm_", "quad_", "lin_"]):
+        return True
+    else:
+        return False
+
 def makeStructure(h_dict, model, outdir):
 
     for sample in h_dict:
@@ -26,7 +32,18 @@ def makeStructure(h_dict, model, outdir):
 
         f.close()
 
-def makePlot(h_dict, model, colors, outdir):
+def makePlot(h_dict, model, config, outdir):
+
+    colors = config.getlist("d_plot", "colors")
+
+    group = []
+    g_colors = []
+
+    if config.has_option("d_plot", "group"): group = config.getlist("d_plot", "group")
+    if config.has_option("d_plot", "g_colors"): g_colors = [int(col) for col in config.getlist("d_plot", "g_colors")]
+
+
+    if len(g_colors) != len(group): sys.exit("[ERROR] Group color do not match group len ...")
 
     for sample in h_dict:
         first_var = h_dict[sample].keys()[0]
@@ -40,6 +57,65 @@ def makePlot(h_dict, model, colors, outdir):
         f.write("#        by mkDCInputs.py           # \n")
         f.write("#-----------------------------------\n")
         f.write("\n\n\n")
+
+        for idx,g_ in enumerate(group):
+
+            group_these = {}
+
+            if  g_.split(":")[1] == "BSM":
+
+                g_name = g_.split(":")[0]
+                if g_name == "model": g_name = model
+
+                group_these[g_name] = {}
+
+                group_these[g_name]['nameHR'] = "'{}'".format(g_name)
+                group_these[g_name]['isSignal'] = 0
+                group_these[g_name]['color'] = g_colors[idx]
+                group_these[g_name]['samples'] = []
+                components = h_dict[sample][h_dict[sample].keys()[0]].keys() #they are equal forall variables
+
+                for comp in components:
+                    if isBSM(comp): group_these[g_name]['samples'].append(comp)
+
+            else:
+                g_name = g_.split(":")[0]
+                g_list = [str(i) for i in (g_.split(":")[1])[1:-1].split(" ")]
+
+                group_these[g_name] = {}
+
+                group_these[g_name]['nameHR'] = "'{}'".format(g_.split(":")[0])
+                group_these[g_name]['isSignal'] = 0
+                group_these[g_name]['color'] = g_colors[idx]
+                group_these[g_name]['samples'] = []
+
+                components = h_dict[sample][h_dict[sample].keys()[0]].keys() #they are equal forall variables
+
+                for comp in g_list:
+                    if comp not in components:
+                        sys.exit("[ERROR] The sample {} specified for grouping into {} does not exists ...".format(comp, g_name))
+
+                    group_these[g_name]['samples'].append(comp)
+
+
+            if len(group_these.keys()) != 0:
+
+                for key in group_these.keys():
+                    f.write('groupPlot["{}"]  = {} \n'.format(key, "{"))
+                    for subkey in group_these[key]:
+                        if subkey != 'samples':
+                            f.write("        '{}' : {}, \n".format(subkey, group_these[key][subkey]))
+                        else:
+                            write_list = "["
+                            for s in group_these[key][subkey]:
+                                write_list += "'{}'".format(s) + ","
+
+                            write_list = write_list[:-1] + "]"
+                            f.write("        '{}' : {}, \n".format(subkey, write_list))
+
+                    f.write("{}\n".format("}"))
+                    f.write("\n\n")
+
 
         for i,key in enumerate(structure):
 
@@ -127,6 +203,15 @@ def makeSamples(h_dict, model, config, outdir):
         f.write("configurations = os.path.realpath(inspect.getfile(inspect.currentframe())) # this file \n")
         f.write("configurations = os.path.dirname(configurations) \n\n")
         f.write("from LatinoAnalysis.Tools.commonTools import getSampleFiles, getBaseW, addSampleWeight\n\n")
+
+        #Samples declaration
+        f.write("# samples\n\n")
+        f.write("try:\n")
+        f.write("   len(samples)\n")
+        f.write("except NameError:\n")
+        f.write("   import collections\n")
+        f.write("   samples = collections.OrderedDict()")
+        f.write("\n\n")
 
         names = config.getlist("d_samples", "name")
         w = config.getlist("d_samples", "weight")
@@ -379,22 +464,10 @@ def makeNuisances(h_dict, model, config, outdir):
             f.write("        'samples': {} \n".format("{"))
             
             for sample in nd[key]['samples']:
-                f.write("            '{}' : {}, \n".format(sample, nd[key]['samples'][sample]))
+                f.write("            '{}' : '{}', \n".format(sample, nd[key]['samples'][sample]))
             f.write("        {} \n".format("}"))
 
             f.write("{}\n".format("}"))
             f.write("\n\n")
 
         f.close()
-
-
-
-
-
-
-
-        
-        
-
-
-

@@ -20,7 +20,7 @@ def get_model_syntax(comp_name):
     d = { "SM": "sm",
           "LI": "lin_",
           "QU": "quad_",
-          "INT": "lin_mixed_",
+          "IN": "lin_mixed_",
           "SM_LI_QU": "sm_lin_quad_",
           "QU_INT": "quad_mixed_",
           "SM_LI_QU_INT": "sm_lin_quad_mixed_",
@@ -71,7 +71,7 @@ def cleanNames(model_dict):
 def histosToModel(histo_dict, model_type = "EFT"):
     if model_type == "EFT":
         print("[INFO]: Converting base model to EFT...")
-        return histo_dict #identity
+        return cleanNames(deepcopy(histo_dict))
 
     if model_type == "EFTNeg":
 
@@ -397,9 +397,7 @@ if __name__ == "__main__":
         mkdir(cfg_folder)
         print("[INFO] Generating dummies ...")
         if bool(config.get("d_structure", "makeDummy")): makeStructure(model_dict, mod, cfg_folder)
-        if bool(config.get("d_plot", "makeDummy")): 
-            colors = config.getlist("d_plot", "colors")
-            makePlot(model_dict, mod, colors, cfg_folder)
+        if bool(config.get("d_plot", "makeDummy")): makePlot(model_dict, mod, config, cfg_folder)
         if bool(config.get("d_samples", "makeDummy")): makeSamples(model_dict, mod, config, cfg_folder)
         if bool(config.get("d_configuration", "makeDummy")): makeConfiguration(model_dict, mod, config, cfg_folder)
         if bool(config.get("d_alias", "makeDummy")): makeAliases(model_dict, mod, cfg_folder)
