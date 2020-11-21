@@ -8,7 +8,34 @@ from copy import deepcopy
 from itertools import combinations
 import math as mt
 from makeDummies import *
-import warnings
+
+def prettyPrintConfig(config, file_dict):
+
+    print(" ---------- @ @ @ @ @ @ @ ----------")
+    print(" -------- Generating histos --------")
+    print("")
+
+    fmt = '{0:>21}: {1:>1}'
+    print(fmt.format("Processes", "{}".format(",".join(k for k in config.getlist("general", "sample")))))
+    print(fmt.format("Output folder/s", "{}".format(",".join(config.get("general", "outfolder")+k for k in config.getlist("general", "sample")))))
+    print(fmt.format("Operator/s", "{}".format(",".join(k for k in config.getlist("eft", "operators")))))
+    print(fmt.format("Combine Model/s","{}".format(",".join(k for k in config.getlist("eft", "models")))))
+    print(fmt.format("Variables/s","{}".format(",".join(k for k in config.getlist("variables", "treenames")))))
+    print(fmt.format("Bins for variable/s","{}".format(",".join(k for k in config.getlist("variables", "bins")))))
+    print(fmt.format("Ranges for variable/s", "{}".format(",".join(k for k in config.getlist("variables", "xrange")))))
+    print("")
+
+    print("---------- Retrieved files ---------")
+    print("")
+
+    for process in file_dict:
+        print("Process: {}".format(process))
+        print("")
+        for component in file_dict[process]:
+            print("\t component: {}, file: {}".format(component, file_dict[process][component]))
+        print("")
+
+    return
 
 def convertCfgLists(list_):
     list_ = [i[1:-1].split(":") for i in list_]
@@ -394,6 +421,9 @@ if __name__ == "__main__":
     parser.add_argument('--cfg',     dest='cfg',     help='Config file with infos about samples/variables/...', 
                        required = True)
 
+    parser.add_argument('--v',     dest='verbose',     help='Optional prints with retrieved infos', default = True, action = 'store_false',
+                       required = False)
+
     args = parser.parse_args()
 
     config = ConfigParser(converters={'list': lambda x: [str(i.strip()) for i in x.split(',')]})
@@ -406,6 +436,9 @@ if __name__ == "__main__":
     if len(models) == 0: sys.exit("[ERROR] No model specified, exiting ...")
 
     fd = retireve_samples(config)
+
+    if args.verbose: prettyPrintConfig(config, fd)
+
     base_histo = makeHistos(config, fd)
     
     for process in base_histo.keys():
