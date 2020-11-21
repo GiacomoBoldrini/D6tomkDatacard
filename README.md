@@ -91,6 +91,14 @@ ntuple_SSWW_cHq3_cll1_IN.root # Same sign WW interference term between cHq3 and 
 ntuple_SSWW_cHWB_LI.root # Same sign WW linear term of operator cHWB_LI
 ```
 
+One root file must have a main tree with ntuples named as the file name minus `ntuple_` such as `OSWW_SM` for the first example above. The root file should also have one auxiliary root histogram (TH1F) containing important information in order to weight histograms. The information needs to be encapsulated in the bin contents as follows (no underflow or overflow involved here):
+- 1st bin: cross_section
+- 2nd bin: total sum of the weights
+
+The histos normalization is computed as: (question: shouldn't we multiply by the weights of the events selected by cuts?)
+`cross_section * 1000. * luminosity / (sum_weights_total)`
+The luminosity is taken from the config file and has to be in pb
+
 ---
 
 # makeDummies.py
