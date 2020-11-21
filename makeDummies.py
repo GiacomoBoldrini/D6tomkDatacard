@@ -8,14 +8,15 @@ def groupSinglets(comp_name):
           "quad": "Q ",
           "lin_mixed": "M ",
           "sm_lin_quad": "SM+L+Q ",
-          "quad_mixed": " Q+Q+M ",
+          "quad_mixed": "Q+Q+M ",
           "sm_lin_quad_mixed": "SM+L+L+Q+Q+M ",
+          "DATA": "DATA"
         }
 
     type_ = comp_name.split("_c")[0]
     newName = d[type_]
 
-    if type_ != "sm": #need to account for operators here
+    if type_ != "sm" and type_!= "DATA": #need to account for operators here
         ops = comp_name.split(type_ + "_")[1]
         if len(ops.split("_")) == 2: 
             ops = ops.split("_")
@@ -49,9 +50,12 @@ def makeStructure(h_dict, model, outdir):
 
         for key in structure:
 
+            isData = 0
+            if key == "DATA": isData = 1
+
             f.write('structure["{}"]  = {} \n'.format(key, "{"))
             f.write("        'isSignal' : 0, \n")
-            f.write("        'isData' : 0, \n")
+            f.write("        'isData' : {}, \n".format(isData))
             f.write("{}\n".format("}"))
             f.write("\n\n")
 
@@ -114,16 +118,17 @@ def makePlot(h_dict, model, config, outdir):
 
             elif g_.split(":")[1] == "all":
                 for i,key in enumerate(structure):
-                    leg_name = groupSinglets(key)
-                    group_these[key] = {}
+                    if key != "DATA":
+                        leg_name = groupSinglets(key)
+                        group_these[key] = {}
 
-                    if key in isSignal.keys(): sig_val = isSignal[key]
-                    else: sig_val = 2
+                        if key in isSignal.keys(): sig_val = isSignal[key]
+                        else: sig_val = 2
 
-                    group_these[key]['nameHR'] = "'{}'".format(leg_name)
-                    group_these[key]['isSignal'] = sig_val
-                    group_these[key]['color'] = colors[i]
-                    group_these[key]['samples'] = [key]
+                        group_these[key]['nameHR'] = "'{}'".format(leg_name)
+                        group_these[key]['isSignal'] = sig_val
+                        group_these[key]['color'] = colors[i]
+                        group_these[key]['samples'] = [key]
 
 
             else:
@@ -176,13 +181,22 @@ def makePlot(h_dict, model, config, outdir):
             if key in isSignal.keys(): sig_val = isSignal[key]
             else: sig_val = 2
 
+            isData = 0
+            if key == "DATA": 
+                isData = 1
+                colors[i] = 1 #overriding, data always in black
+
             if i > len(colors): sys.exit("[ERROR]: Colors not sufficient, add more...")
 
             f.write('plot["{}"]  = {} \n'.format(key, "{"))
             f.write("        'color' : {}, \n".format(colors[i]))
             f.write("        'isSignal' : {}, \n".format(sig_val))
-            f.write("        'isData' : 0, \n")
+            f.write("        'isData' : {}, \n".format(isData))
             f.write("        'scale' : 1, \n")
+
+            if key == "DATA":
+                f.write("        'isBlind' : 1, \n") #default blinding on data
+
             f.write("{}\n".format("}"))
             f.write("\n\n")
 
@@ -195,27 +209,52 @@ def makeVariables(h_dict, model, config, outdir):
     range_ = config.getlist("d_variables", "range")
     fold_ = config.getlist("d_variables", "fold")
 
+    print(fold_)
+
     for sample in h_dict:
         vars_ = h_dict[sample].keys()
 
         bl = len(vars_)
         if not all(len(lst) == bl for lst in [xaxis_, name_, range_, fold_]):
 
-            if xaxis_[0] == "auto": xaxis_ = vars_
-            else: xaxis_ = xaxis_*len(vars_)
-            if name_[0] == "auto": name_ = vars_ 
-            else: name_ = name_*len(vars_)
-            if fold_ == "auto": fold_ = [0]*len(vars_)
-            else: fold_ = fold_*len(vars_)
+            if xaxis_[0] == "auto": xaxis_ = dict((i,j) for i,j in zip(vars_, vars_))
+            elif len(xaxis_) == len(vars_): 
+                tn = config.getlist("variables", "treenames")
+                xaxis_ = dict((i,j) for i,j in zip(tn, xaxis_))
+            else:
+                sys.exit("[ERROR] xaxis name do not match variables, check inputs in cfg ...")
+
+
+            if name_[0] == "auto": name_ = dict((i,j) for i,j in zip(vars_, vars_)) 
+            elif len(name_) == len(vars_): 
+                tn = config.getlist("variables", "treenames")
+                name_ = dict((i,j) for i,j in zip(tn, name_))
+            else:
+                sys.exit("[ERROR] names do not match variables, check inputs in cfg ...")
+            
+
+            if fold_[0] == "auto": fold_ = dict((i,0) for i in vars_)
+            elif len(fold_) == len(vars_): 
+                tn = config.getlist("variables", "treenames")
+                fold_ = dict((i,j) for i,j in zip(tn, fold_))
+            else:
+                sys.exit("[ERROR] folds do not match variables, check inputs in cfg ...")
 
             if range_[0] == "auto":
+                tn = config.getlist("variables", "treenames")
+                range_ = dict.fromkeys(tn)
                 bins = [int(i) for i in config.getlist("variables", "bins")]
                 ranges = [i[1:-1].split(":") for i in config.getlist("variables", "xrange")]
                 ranges = [list(map(float, sublist)) for sublist in ranges]
-                range_ = []
-                for b,r in zip(bins, ranges):
-                    range_.append( [b, r[0], r[1]] )
-            else: range_ = range_*len(vars_)
+
+                for k,b,r in zip(range_.keys(), bins, ranges):
+                    range_[k] = {'bins': b, 'range': [r[0], r[1]]}
+
+            elif len(range_) == len(vars_): 
+                tn = config.getlist("variables", "treenames")
+                range_ = dict((i,j) for i,j in zip(tn, range_))  
+            else: 
+                sys.exit("[ERROR] ranges do not match variables, check inputs in cfg ...")
 
 
         file_name = outdir + "/variables_" + sample + "_" + model + ".py"
@@ -230,10 +269,10 @@ def makeVariables(h_dict, model, config, outdir):
         for var, xa, name, ra, fold in zip(vars_, xaxis_, name_, range_, fold_):
 
             f.write('variables["{}"]  = {} \n'.format(var, "{"))
-            f.write("        'name' : '{}', \n".format(name))
-            f.write("        'range' : ({},{},{}), \n".format(ra[0], ra[1], ra[2]))
-            f.write("        'xaxis' : {}, \n".format(xa))
-            f.write("        'fold' : {}, \n".format(fold))
+            f.write("        'name' : '{}', \n".format(name_[var]))
+            f.write("        'range' : ({},{},{}), \n".format(range_[var]['bins'], range_[var]['range'][0], range_[var]['range'][1]))
+            f.write("        'xaxis' : {}, \n".format(xaxis_[var]))
+            f.write("        'fold' : {}, \n".format(fold_[var]))
             f.write("{}\n".format("}"))
             f.write("\n\n")
 
@@ -412,6 +451,7 @@ def makeCuts(h_dict, model, outdir):
 
 def switchNuis(comp_1, nuis_comp_1, comp_2):
     #this stands also if the component is not sm
+    print("sigma_{} = ({}-1) * {}/{} + 1 = {}".format("2", nuis_comp_1, comp_1, comp_2, (nuis_comp_1 - 1) * float(comp_1)/comp_2 + 1))
     return (nuis_comp_1 - 1) * float(comp_1)/comp_2 + 1
 
 def propagateNuis(h_dict, nuis_dict):
@@ -435,17 +475,23 @@ def propagateNuis(h_dict, nuis_dict):
                     compnames = h_dict[var].keys()
                     for j in compnames:
                         if j == sample:
-                            comp_yield = h_dict[var][j].Integral()
+                            #We do this because mkDatacards saves only the first 4 decimal places
+                            #in the rate. Without this the models are distorted... Not nice but still..
+                            #card.write(''.join(('%-.4f' % yieldsSig[name]) line 240
+                            comp_yield = float('%.4f'%h_dict[var][j].Integral())
                     # propagate to other components having
                     # the nuis name in their name
 
                     for cn in compnames:
                         if (sample in cn) and sample != cn:
-                            comp2_yield = h_dict[var][cn].Integral()
+                            comp2_yield = float('%.4f'%h_dict[var][cn].Integral())
+                            print(cn, comp2_yield)
                             comp2_nuis = switchNuis(comp_yield, comp_nuis, comp2_yield)
+                            print(comp2_nuis)
 
                             nuis_dict[nuis_name]['samples'][cn] = comp2_nuis
 
+    print(nuis_dict)
     return nuis_dict
 
 

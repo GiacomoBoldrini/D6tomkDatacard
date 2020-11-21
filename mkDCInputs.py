@@ -19,11 +19,14 @@ def prettyPrintConfig(config, file_dict):
     print(fmt.format("Processes", "{}".format(",".join(k for k in config.getlist("general", "sample")))))
     print(fmt.format("Output folder/s", "{}".format(",".join(config.get("general", "outfolder")+k for k in config.getlist("general", "sample")))))
     print(fmt.format("Operator/s", "{}".format(",".join(k for k in config.getlist("eft", "operators")))))
+    print(fmt.format("Luminosity", "{}".format(config.get("general", "lumi"))))
     print(fmt.format("Combine Model/s","{}".format(",".join(k for k in config.getlist("eft", "models")))))
     print(fmt.format("Variables/s","{}".format(",".join(k for k in config.getlist("variables", "treenames")))))
     print(fmt.format("Bins for variable/s","{}".format(",".join(k for k in config.getlist("variables", "bins")))))
     print(fmt.format("Ranges for variable/s", "{}".format(",".join(k for k in config.getlist("variables", "xrange")))))
     print("")
+    if len(config.getlist("general", "sample")) < len(config.getlist("eft", "operators")):
+        print("WARNING: \t Ignoring operator/s: {}".format(config.getlist("eft", "operators")[len(config.getlist("general", "sample")):]))
 
     print("---------- Retrieved files ---------")
     print("")
@@ -51,12 +54,13 @@ def get_model_syntax(comp_name):
           "SM_LI_QU": "sm_lin_quad_",
           "QU_INT": "quad_mixed_",
           "SM_LI_QU_INT": "sm_lin_quad_mixed_",
+          "DATA" : "DATA",
         }
 
     type_ = comp_name.split("_c")[0]
     newName = d[type_]
 
-    if type_ != "SM": #need to account for operators here
+    if type_ != "SM" and type_ != "DATA": #need to account for operators here
         ops = comp_name.split(type_ + "_")[1]
         if len(ops.split("_")) == 2: 
             ops = ops.split("_")
@@ -91,7 +95,6 @@ def cleanNames(model_dict):
                     model_dict[sample][var][name] = model_dict[sample][var].pop(c)
                 else:
                     continue
-
     return model_dict
                 
 
@@ -116,6 +119,7 @@ def histosToModel(histo_dict, model_type = "EFT"):
                 quadratic = [i for i in components if "QU" in i]
                 mixed = [i for i in components if "IN" in i]
                 sm = [i for i in components if "SM" in i]
+                data = [i for i in components if "DATA" in i]
 
                 #Checks that everything is right
                 if len(linear) != 1:
@@ -123,6 +127,8 @@ def histosToModel(histo_dict, model_type = "EFT"):
                         sys.exit("[ERROR] errors in the combinatorial, Probably you are missing some interference samples for the op you specified ...")
 
                 eft_neg_dict[sample][var][sm[0]] = histo_dict[sample][var][sm[0]]
+                if len(data) != 0:
+                    eft_neg_dict[sample][var][data[0]] = histo_dict[sample][var][data[0]]
 
                 #store linear and quadratic fine
                 for q in quadratic:
@@ -169,6 +175,7 @@ def histosToModel(histo_dict, model_type = "EFT"):
                 quadratic = [i for i in components if "QU" in i]
                 mixed = [i for i in components if "IN" in i]
                 sm = [i for i in components if "SM" in i]
+                data = [i for i in components if "DATA" in i]
 
                 #Checks that everything is right
                 if len(linear) != 1:
@@ -176,6 +183,9 @@ def histosToModel(histo_dict, model_type = "EFT"):
                         sys.exit("[ERROR] errors in the combinatorial, Probably you are missing some interference samples for the op you specified ...")
 
                 eft_negalt_dict[sample][var][sm[0]] = histo_dict[sample][var][sm[0]]
+
+                if len(data) != 0:
+                    eft_negalt_dict[sample][var][data[0]] = histo_dict[sample][var][data[0]]
 
                 #store linear and quadratic fine
                 for q in quadratic:
@@ -316,7 +326,30 @@ def retireve_samples(config):
     return file_dict
 
 
-def retrieveHisto(paths, tree, var, bins, ranges):
+def retrieveDummy(name, var, bins, ranges):
+
+    if var == "*":
+        var = [i.GetName() for i in chain.GetListOfBranches()]
+        bins = bins*len(var)
+        ranges = ranges*len(var)
+
+    if type(var) != list: 
+        var = [var]
+        bins = [bins]
+        ranges = [ranges]
+
+    th_dict = dict.fromkeys(var)
+    for v, b, r in zip(var, bins, ranges):
+        print("[INFO] @ Filling {} histo dummy ...".format(v))
+        h = ROOT.TH1F(name + "_" + v, name, b, r[0], r[1])
+        for i in range(1, b):
+            h.SetBinContent(i,0)
+
+        th_dict[v] = deepcopy(h)
+
+    return th_dict
+
+def retrieveHisto(paths, tree, var, bins, ranges, luminosity):
     
     chain = ROOT.TChain(tree)
     for path in paths:
@@ -334,11 +367,32 @@ def retrieveHisto(paths, tree, var, bins, ranges):
 
     th_dict = dict.fromkeys(var)
     for v, b, r in zip(var, bins, ranges):
-        print("[INFO] @ Filling {} histo ...".format(v))
+
         h = ROOT.TH1F(v, v, b, r[0], r[1])
         h.SetDirectory(0)
-        for event in chain:
-            h.Fill(getattr(event, v), getattr(event, "w"))
+        print("[INFO] @ Filling {} histo ...".format(v))
+
+        for path in paths:
+            f = ROOT.TFile(path)
+            t = f.Get(tree)
+
+            #reading some important infos
+            global_numbers             = f.Get ( tree + "_nums")
+            cross_section              = global_numbers.GetBinContent (1) 
+            sum_weights_total          = global_numbers.GetBinContent (2) 
+            sum_weights_selected       = global_numbers.GetBinContent (3) 
+            
+            #NB luminosity in fb, cross-section expected in pb in the config files
+            normalization = cross_section * 1000. * luminosity / (sum_weights_total)
+
+            for event in t:
+                h.Fill(getattr(event, v), getattr(event, "w"))
+
+            #Normalize the histo
+            h.Scale(normalization)
+            #overflow bin count -> last bin count
+            h.SetBinContent(h.GetNbinsX(), h.GetBinContent(h.GetNbinsX()) + h.GetBinContent(h.GetNbinsX() + 1))
+            h.SetBinContent(h.GetNbinsX() + 1, 0.)
 
         th_dict[v] = deepcopy(h)
 
@@ -366,6 +420,11 @@ def makeHistos(config, file_dict):
     ranges = convertCfgLists(config.getlist("variables", "xrange"))
     histo_name = config.getlist("variables", "histonames")
     ops = config.getlist("eft", "operators")
+    lumi = float(config.get("general", "lumi"))
+
+    dummies = []
+    if config.has_option("variables", "makeDummy"): dummies = config.getlist("variables", "makeDummy")
+
     int_ = len(ops) > 1
 
     if vars_[0] != "*" and len(vars_) != len(bins) or len(vars_) != len(ranges):
@@ -383,8 +442,16 @@ def makeHistos(config, file_dict):
                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, component))
                 for var, bins_, ranges_ in zip(vars_, bins, ranges) :
                     nt = (file_dict[s][component][0].split("ntuple_")[1]).split(".root")[0]
-                    base_histos[s][component].update(retrieveHisto(file_dict[s][component], nt, var, bins_, ranges_))
-
+                    base_histos[s][component].update(retrieveHisto(file_dict[s][component], nt, var, bins_, ranges_, lumi))
+                
+        for dummy in dummies:
+            print("[INFO] @ ---- Filling dummy histos for sample {}, component: {} ---- \
+                \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, dummy))
+            vars_copy = base_histos[s][file_dict[s].keys()[0]].keys() #because here we retrieved from the .root, can be "*"
+            base_histos[s][dummy] = {}
+            for var, bins_, ranges_ in zip(vars_, bins, ranges) :
+                base_histos[s][dummy].update(retrieveDummy( dummy, var, bins_, ranges_))
+                    
     base_histos = invertHistoDict(base_histos)
     
     return base_histos
@@ -455,7 +522,7 @@ if __name__ == "__main__":
 
             model_dict = histosToModel(dict((proc,base_histo[proc]) for proc in base_histo.keys() if proc == process), model_type=mod)
             write(model_dict, outname = mod_path + "/rootFile/" + outfile)
-
+            
             print("[INFO] Generating dummies ...")
             if bool(config.get("d_structure", "makeDummy")): makeStructure(model_dict, mod, mod_path)
             if bool(config.get("d_plot", "makeDummy")): makePlot(model_dict, mod, config, mod_path)
