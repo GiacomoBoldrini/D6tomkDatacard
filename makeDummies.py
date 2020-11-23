@@ -451,7 +451,7 @@ def makeCuts(h_dict, model, outdir):
 
 def switchNuis(comp_1, nuis_comp_1, comp_2):
     #this stands also if the component is not sm
-    print("sigma_{} = ({}-1) * {}/{} + 1 = {}".format("2", nuis_comp_1, comp_1, comp_2, (nuis_comp_1 - 1) * float(comp_1)/comp_2 + 1))
+    #print("sigma_{} = ({}-1) * {}/{} + 1 = {}".format("2", nuis_comp_1, comp_1, comp_2, (nuis_comp_1 - 1) * float(comp_1)/comp_2 + 1))
     return (nuis_comp_1 - 1) * float(comp_1)/comp_2 + 1
 
 def propagateNuis(h_dict, nuis_dict):
@@ -485,13 +485,13 @@ def propagateNuis(h_dict, nuis_dict):
                     for cn in compnames:
                         if (sample in cn) and sample != cn:
                             comp2_yield = float('%.4f'%h_dict[var][cn].Integral())
-                            print(cn, comp2_yield)
+                            #print(cn, comp2_yield)
                             comp2_nuis = switchNuis(comp_yield, comp_nuis, comp2_yield)
-                            print(comp2_nuis)
+                            #print(comp2_nuis)
 
                             nuis_dict[nuis_name]['samples'][cn] = comp2_nuis
 
-    print(nuis_dict)
+    #print(nuis_dict)
     return nuis_dict
 
 

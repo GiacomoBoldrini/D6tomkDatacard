@@ -380,7 +380,7 @@ def retrieveHisto(paths, tree, var, bins, ranges, luminosity):
             global_numbers             = f.Get ( tree + "_nums")
             cross_section              = global_numbers.GetBinContent (1) 
             sum_weights_total          = global_numbers.GetBinContent (2) 
-            sum_weights_selected       = global_numbers.GetBinContent (3) 
+            #sum_weights_selected       = global_numbers.GetBinContent (3) 
             
             #NB luminosity in fb, cross-section expected in pb in the config files
             normalization = cross_section * 1000. * luminosity / (sum_weights_total)
