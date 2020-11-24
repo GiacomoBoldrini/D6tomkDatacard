@@ -209,8 +209,6 @@ def makeVariables(h_dict, model, config, outdir):
     range_ = config.getlist("d_variables", "range")
     fold_ = config.getlist("d_variables", "fold")
 
-    print(fold_)
-
     for sample in h_dict:
         vars_ = h_dict[sample].keys()
 
