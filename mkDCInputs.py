@@ -1,5 +1,7 @@
 import os
 import sys
+import stat
+from array import array
 from configparser import ConfigParser
 import argparse
 from glob import glob
@@ -40,6 +42,52 @@ def prettyPrintConfig(config, file_dict):
 
     return
 
+
+def makeExec(model, process, config, outdir):
+    #creates an executable to create binary workspaces after running mkDatacards.py
+
+    modeltot2w = {
+        "EFT": "EFT",
+        "EFTNeg": "EFTNegative",
+        "EFTNeg-alt": "EFTNegative"
+    }
+
+    variables = config.getlist("variables", "treenames")
+    ops = config.getlist("eft", "operators")
+    ops = [i[1:-1].split(":") for i in ops]
+    ops = [list(map(str, sublist)) for sublist in ops]
+    samples = config.getlist("general", "sample")
+
+    ops = ops[samples.index(process)]
+
+    mod = modeltot2w[model]
+
+    file_name = outdir + "/t2w.sh"
+    f = open(file_name, 'w')
+
+    f.write("#-----------------------------------\n")
+    f.write("#     Automatically generated       # \n")
+    f.write("#        by mkDCInputs.py           # \n")
+    f.write("#-----------------------------------\n")
+    f.write("\n\n\n")
+
+    for var in variables:
+        f.write("#-----------------------------------\n")
+        f.write("cd datacards/{}/{}\n".format(process, var))
+        to_w = "text2workspace.py  datacard.txt  -P HiggsAnalysis.AnalyticAnomalousCoupling.AnomalousCoupling{}:analiticAnomalousCoupling{}  -o   model.root \
+        --X-allow-no-signal --PO eftOperators={}".format(mod, mod, ",".join(op for op in ops))        
+        if "alt" in model: to_w += " --PO  eftAlternative"
+        
+        to_w += "\n"
+        f.write(to_w)
+        f.write("cd ../../..\n\n\n")
+
+    f.close()
+    #convert to executable
+    st = os.stat(file_name)
+    os.chmod(file_name, st.st_mode | stat.S_IEXEC)
+
+    
 def convertCfgLists(list_):
     list_ = [i[1:-1].split(":") for i in list_]
     return [list(map(float, sublist)) for sublist in list_]
@@ -202,6 +250,7 @@ def histosToModel(histo_dict, model_type = "EFT"):
                 op_comb = [(i.split("IN_")[1]).split("_") for i in components if "IN" in i]
                 for o_c in op_comb:
                     new_sm = histo_dict[sample][var][sm[0]].Clone(var + "_" + "QU_INT_{}_{}".format(o_c[0], o_c[1]))
+                    new_sm.Reset("ICESM") #resetting histo, now blank
                     new_sm.SetDirectory(0)
                     new_sm.Add(histo_dict[sample][var]["QU_{}".format(o_c[0])])
                     new_sm.Add(histo_dict[sample][var]["QU_{}".format(o_c[1])])
@@ -384,9 +433,21 @@ def retrieveHisto(paths, tree, var, bins, ranges, luminosity):
             
             #NB luminosity in fb, cross-section expected in pb in the config files
             normalization = cross_section * 1000. * luminosity / (sum_weights_total)
+            
+            #Way faster by reading directly the branches...but float is mandatory...
+            x = array('f',[0])
+            w = array('f',[0])
+            t.SetBranchAddress(v, x)
+            t.SetBranchAddress("w", w)
+            i = 0
+            while t.GetEntry(i):
+                i += 1
+                h.Fill(x[0], w[0])
 
+            """
             for event in t:
                 h.Fill(getattr(event, v), getattr(event, "w"))
+            """
 
             #Normalize the histo
             h.Scale(normalization)
@@ -522,6 +583,8 @@ if __name__ == "__main__":
 
             model_dict = histosToModel(dict((proc,base_histo[proc]) for proc in base_histo.keys() if proc == process), model_type=mod)
             write(model_dict, outname = mod_path + "/rootFile/" + outfile)
+
+            makeExec(mod, process, config, mod_path)
             
             print("[INFO] Generating dummies ...")
             if bool(config.get("d_structure", "makeDummy")): makeStructure(model_dict, mod, mod_path)
