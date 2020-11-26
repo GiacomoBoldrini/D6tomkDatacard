@@ -10,6 +10,7 @@ from copy import deepcopy
 from itertools import combinations
 import math as mt
 from makeDummies import *
+import numpy as np
 
 def prettyPrintConfig(config, file_dict):
 
@@ -330,7 +331,7 @@ def retireve_samples(config):
 
 
             for folder in folders:
-                files = glob(folder + "/*_" + s + "_" + op + "*.root")
+                files = glob(folder + "/*_" + s + "_" + op + "_*.root")
                 for file_ in files:
                     if "QU" in file_: file_dict[sh]["QU_{}".format(op)].append(file_)
                     if "LI" in file_: file_dict[sh]["LI_{}".format(op)].append(file_)
@@ -394,7 +395,60 @@ def retrieveDummy(name, var, bins, ranges):
 
     return th_dict
 
-def retrieveHisto(paths, tree, var, bins, ranges, luminosity):
+def makeCut(config):
+    """
+    cuts = {"cut": {}, "execcuts": {}}
+
+    n_cut = config.getlist("cuts", "normalcuts")
+    cuts["cut"]["var"] = []
+    cuts["cut"]["op"] = []
+    cuts["cut"]["value"] = []
+
+    print(n_cut)
+  
+    #if config.has_option("cut", "execcuts"): e_cut = config.getlist("cut", "execcuts").split(",")
+
+    logics = ["==", "<", "<=", ">", ">=", "and", "or"]
+
+    #building normal cuts
+    for cut in  n_cut:
+        for l in logics:
+            if cut.find(l) > -1: 
+                c = cut.split(l)
+                c = [i.strip(" ") for i in c]
+
+                try:
+                    c[1] = float(c[1])
+                    c[0] = str(c[0])
+                except:
+                    pass 
+
+                try:
+                    c[1] = float(c[0])
+                    c[0] = str(c[1])
+                except:
+                    pass 
+
+                cuts["cut"]["var"].append(c[0])
+                cuts["cut"]["op"].append(l)
+                cuts["cut"]["value"].append(c[1])
+
+    return cuts
+    """
+    n_cut = config.getlist("cuts", "normalcuts")
+    print(" && ".join(cut for cut in n_cut))
+    return " && ".join(cut for cut in n_cut)
+
+
+def isCut(cutdf, cuts):
+
+    isCut = False 
+    for var, op, value in zip(cuts["cut"]["var"], cuts["cut"]["op"], cuts["cut"]["value"]):
+        if not eval("cutdf['{}'][0] {} {}".format(var, op, value)):
+            return True
+
+
+def retrieveHisto(paths, tree, var, bins, ranges, luminosity, cuts):
     
     chain = ROOT.TChain(tree)
     for path in paths:
@@ -414,12 +468,17 @@ def retrieveHisto(paths, tree, var, bins, ranges, luminosity):
     for v, b, r in zip(var, bins, ranges):
 
         h = ROOT.TH1F(v, v, b, r[0], r[1])
-        h.SetDirectory(0)
+        #h = ROOT.TH1F("h", "h", b, r[0], r[1])
+        h.Sumw2()
+        #h.SetDirectory(0)
         print("[INFO] @ Filling {} histo ...".format(v))
 
         for path in paths:
             f = ROOT.TFile(path)
-            t = f.Get(tree)
+            t = ROOT.TTree()
+            f.GetObject(tree, t)
+
+            htemp = ROOT.TH1F(v + "_temp", v + "_temp", b, r[0], r[1])
 
             #reading some important infos
             global_numbers             = f.Get ( tree + "_nums")
@@ -430,26 +489,44 @@ def retrieveHisto(paths, tree, var, bins, ranges, luminosity):
             #NB luminosity in fb, cross-section expected in pb in the config files
             normalization = cross_section * 1000. * luminosity / (sum_weights_total)
             
+            """
+            #cut vars
+
             #Way faster by reading directly the branches...but float is mandatory...
             x = array('f',[0])
             w = array('f',[0])
             t.SetBranchAddress(v, x)
             t.SetBranchAddress("w", w)
+
+            c_branch_reader = {}
+            for c_var in np.unique(cuts["cut"]["var"]):
+                c_branch_reader[c_var] = array('f', [0])
+
+            #reading cuts
+            for key in c_branch_reader.keys():
+                if key != v:
+                    t.SetBranchAddress(key, c_branch_reader[key])
+                else:
+                    c_branch_reader[key] = x
+
             i = 0
             while t.GetEntry(i):
                 i += 1
-                h.Fill(x[0], w[0])
-
+                if not isCut(c_branch_reader, cuts):
+                    h.Fill(x[0], w[0])
             """
-            for event in t:
-                h.Fill(getattr(event, v), getattr(event, "w"))
-            """
+            t.Draw("{} >> {}".format(v, v + "_temp"), "{}".format(cuts), "")
 
             #Normalize the histo
-            h.Scale(normalization)
+            htemp.Scale(normalization)
             #overflow bin count -> last bin count
-            h.SetBinContent(h.GetNbinsX(), h.GetBinContent(h.GetNbinsX()) + h.GetBinContent(h.GetNbinsX() + 1))
-            h.SetBinContent(h.GetNbinsX() + 1, 0.)
+            htemp.SetBinContent(htemp.GetNbinsX(), htemp.GetBinContent(h.GetNbinsX()) + htemp.GetBinContent(h.GetNbinsX() + 1))
+            htemp.SetBinContent(htemp.GetNbinsX() + 1, 0.)
+
+            h.Add(htemp)
+
+        #h.SetBinContent(h.GetNbinsX(), h.GetBinContent(h.GetNbinsX()) + h.GetBinContent(h.GetNbinsX() + 1))
+        #h.SetBinContent(h.GetNbinsX() + 1, 0.)
 
         th_dict[v] = deepcopy(h)
 
@@ -483,7 +560,9 @@ def makeHistos(config, file_dict):
 
     if vars_[0] != "*" and len(vars_) != len(bins) or len(vars_) != len(ranges):
         sys.exit("[ERROR] var names and bins/xranges do not match. Ignore or take action ...")
-        
+
+    cut = "1==1"
+    if config.has_option("cuts", "normalcuts"): cut = makeCut(config)    
 
     base_histos = dict.fromkeys(file_dict.keys()) 
 
@@ -496,7 +575,7 @@ def makeHistos(config, file_dict):
                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, component))
                 for var, bins_, ranges_ in zip(vars_, bins, ranges) :
                     nt = (file_dict[s][component][0].split("ntuple_")[1]).split(".root")[0]
-                    base_histos[s][component].update(retrieveHisto(file_dict[s][component], nt, var, bins_, ranges_, lumi))
+                    base_histos[s][component].update(retrieveHisto(file_dict[s][component], nt, var, bins_, ranges_, lumi, cut))
                 
         for dummy in dummies:
             print("[INFO] @ ---- Filling dummy histos for sample {}, component: {} ---- \
