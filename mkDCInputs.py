@@ -534,14 +534,13 @@ def retrieveHisto(paths, tree, var, bins, ranges, luminosity, cuts):
 
         h = ROOT.TH1F(v, v, b, r[0], r[1])
         #h = ROOT.TH1F("h", "h", b, r[0], r[1])
-        h.Sumw2()
+        #h.Sumw2()
         #h.SetDirectory(0)
         print("[INFO] @ Filling {} histo ...".format(v))
 
         for path in paths:
             f = ROOT.TFile(path)
-            t = ROOT.TTree()
-            f.GetObject(tree, t)
+            t = f.Get(tree)
 
             htemp = ROOT.TH1F(v + "_temp", v + "_temp", b, r[0], r[1])
 
@@ -550,10 +549,11 @@ def retrieveHisto(paths, tree, var, bins, ranges, luminosity, cuts):
             cross_section              = global_numbers.GetBinContent (1) 
             sum_weights_total          = global_numbers.GetBinContent (2) 
             #sum_weights_selected       = global_numbers.GetBinContent (3) 
-            
+
             #NB luminosity in fb, cross-section expected in pb in the config files
             normalization = cross_section * 1000. * luminosity / (sum_weights_total)
-            t.Draw("{} >> {}".format(v, v + "_temp"), "{}".format(cuts), "")
+            print(cross_section, sum_weights_total, normalization)
+            t.Draw("{} >> {}".format(v, v + "_temp"), "w*({})".format(cuts), "")
 
             #Normalize the histo
             htemp.Scale(normalization)
@@ -566,6 +566,7 @@ def retrieveHisto(paths, tree, var, bins, ranges, luminosity, cuts):
         #h.SetBinContent(h.GetNbinsX(), h.GetBinContent(h.GetNbinsX()) + h.GetBinContent(h.GetNbinsX() + 1))
         #h.SetBinContent(h.GetNbinsX() + 1, 0.)
 
+        print("HIntegral 2: {}".format(h.Integral()))
         th_dict[v] = deepcopy(h)
 
     return th_dict
