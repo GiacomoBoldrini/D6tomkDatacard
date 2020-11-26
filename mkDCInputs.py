@@ -20,7 +20,8 @@ def prettyPrintConfig(config, file_dict):
 
     fmt = '{0:>21}: {1:>1}'
     print(fmt.format("Processes", "{}".format(",".join(k for k in config.getlist("general", "sample")))))
-    print(fmt.format("Output folder/s", "{}".format(",".join(config.get("general", "outfolder")+k for k in config.getlist("general", "sample")))))
+    print(fmt.format("Main output folder", "{}".format(config.get("general", "outfolder"))))
+    print(fmt.format("Output sub-folder/s", "{}".format(",".join(config.get("general", "folder_prefix")+k for k in config.getlist("general", "sample")))))
     print(fmt.format("Operator/s", "{}".format(",".join(k for k in config.getlist("eft", "operators")))))
     print(fmt.format("Luminosity", "{}".format(config.get("general", "lumi"))))
     print(fmt.format("Combine Model/s","{}".format(",".join(k for k in config.getlist("eft", "models")))))
@@ -79,6 +80,70 @@ def makeExec(model, process, config, outdir):
         f.write("cd ../../..\n\n\n")
 
     f.close()
+    #convert to executable
+    st = os.stat(file_name)
+    os.chmod(file_name, st.st_mode | stat.S_IEXEC)
+
+
+def makeActivations(outdir, config):
+
+    models = config.getlist("eft", "models")
+    prefix = config.getlist("general", "folder_prefix")
+    
+    #Activation of t2w:
+    file_name = outdir + "/runt.py"
+    f = open(file_name, 'w')
+
+    f.write("#-----------------------------------\n")
+    f.write("#     Automatically generated       # \n")
+    f.write("#        by mkDCInputs.py           # \n")
+    f.write("#-----------------------------------\n")
+    f.write("\n\n\n")
+
+    f.write('from glob import glob\n')
+    f.write('import os\n')
+    f.write('if __name__ == "__main__":\n')
+    f.write('   base_dir = os.getcwd()\n')
+    f.write('   for dir in glob(base_dir + "/*/"):\n')
+    f.write('      process = dir.split("/")[-2]\n')
+    f.write('      process = process.split("{}")[1]\n'.format(prefix))
+    f.write('      op = process.split("_")[1]\n')
+    f.write('      for model in [{}]:\n'.format(",".join("\"{}\"".format(i) for i in models)))
+    f.write('         print("[INFO] Running for op: \{\}, model: \{\}".format(op, model))\n')
+    f.write('         os.chdir(dir + "/" + model)\n')
+    f.write('         os.system("bash t2w.sh")\n')
+
+    f.close()
+    #convert to executable
+    st = os.stat(file_name)
+    os.chmod(file_name, st.st_mode | stat.S_IEXEC)
+
+    file_name = outdir + "/runc.py"
+    f2 = open(file_name, 'w')
+
+
+    f2.write("#-----------------------------------\n")
+    f2.write("#     Automatically generated       # \n")
+    f2.write("#        by mkDCInputs.py           # \n")
+    f2.write("#-----------------------------------\n")
+    f2.write("\n\n\n")
+
+    f2.write('from glob import glob\n')
+    f2.write('import os\n')
+    f2.write('if __name__ == "__main__":\n')
+    f2.write('   base_dir = os.getcwd()\n')
+    f2.write('   for dir in glob(base_dir + "/*/"):\n')
+    f2.write('      process = dir.split("/")[-2]\n')
+    f2.write('      process = process.split("to_Latinos_")[1]\n')
+    f2.write('      op = process.split("_")[1]\n')
+    f2.write('      for model in [{}]:\n'.format(",".join("\"{}\"".format(i) for i in models)))
+    f2.write('         for vars in glob(dir + "/" + model + "/datacards/" + process + "/*/") :\n')
+    f2.write('            os.chdir(vars)\n')
+    f2.write('            print("running \{\} in \{\}".format(vars, os.getcwd())) \n')
+    f2.write('            to_w = "combine -M MultiDimFit model.root  --algo=grid --points 100000  -m 125   -t -1   --robustFit=1  --redefineSignalPOIs \{\}     --freezeParameters r      --setParameters r=1    --setParameterRanges \{\}=-5,5  --verbose -1".format("k_"+op, "k_"+op) \n')
+    f2.write('            os.system(to_w)\n')
+ 
+    f2.close()
     #convert to executable
     st = os.stat(file_name)
     os.chmod(file_name, st.st_mode | stat.S_IEXEC)
@@ -488,33 +553,6 @@ def retrieveHisto(paths, tree, var, bins, ranges, luminosity, cuts):
             
             #NB luminosity in fb, cross-section expected in pb in the config files
             normalization = cross_section * 1000. * luminosity / (sum_weights_total)
-            
-            """
-            #cut vars
-
-            #Way faster by reading directly the branches...but float is mandatory...
-            x = array('f',[0])
-            w = array('f',[0])
-            t.SetBranchAddress(v, x)
-            t.SetBranchAddress("w", w)
-
-            c_branch_reader = {}
-            for c_var in np.unique(cuts["cut"]["var"]):
-                c_branch_reader[c_var] = array('f', [0])
-
-            #reading cuts
-            for key in c_branch_reader.keys():
-                if key != v:
-                    t.SetBranchAddress(key, c_branch_reader[key])
-                else:
-                    c_branch_reader[key] = x
-
-            i = 0
-            while t.GetEntry(i):
-                i += 1
-                if not isCut(c_branch_reader, cuts):
-                    h.Fill(x[0], w[0])
-            """
             t.Draw("{} >> {}".format(v, v + "_temp"), "{}".format(cuts), "")
 
             #Normalize the histo
@@ -594,8 +632,7 @@ def mkdir(path):
     try:
         os.mkdir(path)
     except:
-        print('[INFO] Folder {} already present, skipping ...'.format(path))
-    
+        sys.exit("[ERROR] Dirs are already present ... Delete them or change name in order to avoid overriding")
     return 
 
 
@@ -630,8 +667,12 @@ if __name__ == "__main__":
     config.read(args.cfg)
 
     outdir = config.get("general", "outfolder")
+    outprefix = config.get("general", "folder_prefix")
     outfile = config.get("general", "outfile")
     models = config.getlist("eft", "models")
+
+    mkdir(outdir)
+    makeActivations(outdir, config) #make scripts for automatic activation of text2workspace and combine
 
     if len(models) == 0: sys.exit("[ERROR] No model specified, exiting ...")
 
@@ -644,7 +685,7 @@ if __name__ == "__main__":
     for process in base_histo.keys():
 
         #Saving, discriminating processes
-        outfile_path = outdir + process
+        outfile_path = outdir + "/" + outprefix + process
         mkdir(outfile_path)
         
         for mod in models:

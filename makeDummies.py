@@ -64,6 +64,8 @@ def makeStructure(h_dict, model, outdir):
 def makePlot(h_dict, model, config, outdir):
 
     colors = config.getlist("d_plot", "colors")
+    c_types = [i.split(":")[0] for i in colors]
+    c_vals = [int(i.split(":")[1]) for i in colors]
 
     group = []
     g_colors = []
@@ -83,6 +85,15 @@ def makePlot(h_dict, model, config, outdir):
     for sample in h_dict:
         first_var = h_dict[sample].keys()[0]
         structure = h_dict[sample][first_var].keys()
+        
+        op = sample.split("_")[1]
+        
+        colors_op = [[i + "_" + op, j] for i,j in zip(c_types,c_vals) if i!="sm" and i != "Data" and i!="DATA"]
+        cd = dict((i[0],i[1]) for i in colors_op)
+        if "sm" in c_types:
+            cd["sm"] = c_vals[c_types.index("sm")]
+        cd["Data"] = 1
+        cd["DATA"] = 1
 
         file_name = outdir + "/plot_" + sample + "_" + model + ".py"
         f = open(file_name, 'w')
@@ -127,7 +138,7 @@ def makePlot(h_dict, model, config, outdir):
 
                         group_these[key]['nameHR'] = "'{}'".format(leg_name)
                         group_these[key]['isSignal'] = sig_val
-                        group_these[key]['color'] = colors[i]
+                        group_these[key]['color'] = cd[key]
                         group_these[key]['samples'] = [key]
 
 
@@ -180,16 +191,19 @@ def makePlot(h_dict, model, config, outdir):
 
             if key in isSignal.keys(): sig_val = isSignal[key]
             else: sig_val = 2
-
+            
             isData = 0
             if key == "DATA": 
                 isData = 1
-                colors[i] = 1 #overriding, data always in black
+
+            color = 1
+            if key in cd:
+                color = cd[key]
 
             if i > len(colors): sys.exit("[ERROR]: Colors not sufficient, add more...")
 
             f.write('plot["{}"]  = {} \n'.format(key, "{"))
-            f.write("        'color' : {}, \n".format(colors[i]))
+            f.write("        'color' : {}, \n".format(color))
             f.write("        'isSignal' : {}, \n".format(sig_val))
             f.write("        'isData' : {}, \n".format(isData))
             f.write("        'scale' : 1, \n")
