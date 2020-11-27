@@ -94,6 +94,7 @@ def makeActivations(outdir, config):
     file_name = outdir + "/runt.py"
     f = open(file_name, 'w')
 
+    f.write("#!/usr/bin/env python\n\n")
     f.write("#-----------------------------------\n")
     f.write("#     Automatically generated       # \n")
     f.write("#        by mkDCInputs.py           # \n")
@@ -102,6 +103,7 @@ def makeActivations(outdir, config):
 
     f.write('from glob import glob\n')
     f.write('import os\n')
+
     f.write('if __name__ == "__main__":\n')
     f.write('   base_dir = os.getcwd()\n')
     f.write('   for dir in glob(base_dir + "/*/"):\n')
@@ -109,7 +111,7 @@ def makeActivations(outdir, config):
     f.write('      process = process.split("{}")[1]\n'.format(prefix))
     f.write('      op = process.split("_")[1]\n')
     f.write('      for model in [{}]:\n'.format(",".join("\"{}\"".format(i) for i in models)))
-    f.write('         print("[INFO] Running for op: \{\}, model: \{\}".format(op, model))\n')
+    f.write('         print("[INFO] Running for op: {}, model: {}".format(op, model))\n')
     f.write('         os.chdir(dir + "/" + model)\n')
     f.write('         os.system("bash t2w.sh")\n')
 
@@ -121,7 +123,7 @@ def makeActivations(outdir, config):
     file_name = outdir + "/runc.py"
     f2 = open(file_name, 'w')
 
-
+    f2.write("#!/usr/bin/env python\n\n")
     f2.write("#-----------------------------------\n")
     f2.write("#     Automatically generated       # \n")
     f2.write("#        by mkDCInputs.py           # \n")
@@ -130,17 +132,39 @@ def makeActivations(outdir, config):
 
     f2.write('from glob import glob\n')
     f2.write('import os\n')
+
+    f2.write("def getRange(op):\n")
+    f2.write("    d = {\n")
+    f2.write("      'cW': [-0.5,0.5],\n")
+    f2.write("      'cHWB': [-4,4],\n")
+    f2.write("      'cHl3' : [-1,1],\n")
+    f2.write("      'cHq1':[-2,2],\n")
+    f2.write("      'cHq3': [-0.5,0.5],\n")
+    f2.write("      'cll1': [-0.5,0.5],\n")
+    f2.write("      'cHbox': [-10,10],\n")
+    f2.write("      'cHDD' : [-5,5],\n") 
+    f2.write("      'cHl1' : [-25,25],\n") 
+    f2.write("      'cHW': [-5,5]  ,\n")    
+    f2.write("      'cqq11': [-1,1]  ,\n")     
+    f2.write("      'cqq1' : [-1,1] ,\n")  
+    f2.write("      'cqq31':  [-1,1] ,\n")   
+    f2.write("      'cqq3':  [-1,1] ,\n")   
+    f2.write("      'cll':   [-70,70]\n")   
+    f2.write("    }\n\n")
+    f2.write("    return d[op]\n") 
+
     f2.write('if __name__ == "__main__":\n')
     f2.write('   base_dir = os.getcwd()\n')
     f2.write('   for dir in glob(base_dir + "/*/"):\n')
     f2.write('      process = dir.split("/")[-2]\n')
     f2.write('      process = process.split("to_Latinos_")[1]\n')
     f2.write('      op = process.split("_")[1]\n')
+    f2.write('      range_ = getRange(op)\n')
     f2.write('      for model in [{}]:\n'.format(",".join("\"{}\"".format(i) for i in models)))
     f2.write('         for vars in glob(dir + "/" + model + "/datacards/" + process + "/*/") :\n')
     f2.write('            os.chdir(vars)\n')
-    f2.write('            print("running \{\} in \{\}".format(vars, os.getcwd())) \n')
-    f2.write('            to_w = "combine -M MultiDimFit model.root  --algo=grid --points 100000  -m 125   -t -1   --robustFit=1  --redefineSignalPOIs \{\}     --freezeParameters r      --setParameters r=1    --setParameterRanges \{\}=-5,5  --verbose -1".format("k_"+op, "k_"+op) \n')
+    f2.write('            print("running {} in {}".format(vars, os.getcwd())) \n')
+    f2.write('            to_w = "combine -M MultiDimFit model.root  --algo=grid --points 5000  -m 125   -t -1   --robustFit=1  --redefineSignalPOIs \{\}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}={},{}  --verbose -1".format("k_"+op, "k_"+op, range_[0], range_[1]) \n')
     f2.write('            os.system(to_w)\n')
  
     f2.close()
@@ -533,9 +557,6 @@ def retrieveHisto(paths, tree, var, bins, ranges, luminosity, cuts):
     for v, b, r in zip(var, bins, ranges):
 
         h = ROOT.TH1F(v, v, b, r[0], r[1])
-        #h = ROOT.TH1F("h", "h", b, r[0], r[1])
-        #h.Sumw2()
-        #h.SetDirectory(0)
         print("[INFO] @ Filling {} histo ...".format(v))
 
         for path in paths:
@@ -552,7 +573,6 @@ def retrieveHisto(paths, tree, var, bins, ranges, luminosity, cuts):
 
             #NB luminosity in fb, cross-section expected in pb in the config files
             normalization = cross_section * 1000. * luminosity / (sum_weights_total)
-            print(cross_section, sum_weights_total, normalization)
             t.Draw("{} >> {}".format(v, v + "_temp"), "w*({})".format(cuts), "")
 
             #Normalize the histo
@@ -563,10 +583,6 @@ def retrieveHisto(paths, tree, var, bins, ranges, luminosity, cuts):
 
             h.Add(htemp)
 
-        #h.SetBinContent(h.GetNbinsX(), h.GetBinContent(h.GetNbinsX()) + h.GetBinContent(h.GetNbinsX() + 1))
-        #h.SetBinContent(h.GetNbinsX() + 1, 0.)
-
-        print("HIntegral 2: {}".format(h.Integral()))
         th_dict[v] = deepcopy(h)
 
     return th_dict
