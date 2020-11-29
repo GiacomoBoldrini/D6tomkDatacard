@@ -45,7 +45,7 @@ def prettyPrintConfig(config, file_dict):
     return
 
 
-def makeExec(model, process, config, outdir):
+def makeExecRunt(model, process, config, outdir):
     #creates an executable to create binary workspaces after running mkDatacards.py
 
     modeltot2w = {
@@ -84,11 +84,53 @@ def makeExec(model, process, config, outdir):
     st = os.stat(file_name)
     os.chmod(file_name, st.st_mode | stat.S_IEXEC)
 
+def createOpRange(config):
+
+    if not config.has_option("eft", "fitranges"): 
+        all_ops = np.unique([item for subs in redemensionOpinput(config) for item in subs])
+        return dict((i, [-10,10]) for i in all_ops)
+    
+    else:
+        or_ = config.getlist("eft", "fitranges")
+        return dict( (i.split(":")[0], [ float(i.split(":")[1]) , float(i.split(":")[2]) ] ) for i in or_ )
+
+
+def makeExecRunc(process, config, outdir, opr):
+    #creates an executable to fit binary workspaces after running mkDatacards.py
+
+    variables = config.getlist("variables", "treenames")
+    ops = process.split("_")[1:]
+
+    ranges = ":".join("k_"+op+"={},{}".format(opr[op][0],opr[op][1]) for op in ops)
+
+
+    file_name = outdir + "/fit.sh"
+    f = open(file_name, 'w')
+
+    f.write("#-----------------------------------\n")
+    f.write("#     Automatically generated       # \n")
+    f.write("#        by mkDCInputs.py           # \n")
+    f.write("#-----------------------------------\n")
+    f.write("\n\n\n")
+
+    for var in variables:
+        f.write("#-----------------------------------\n")
+        f.write("cd datacards/{}/{}\n".format(process, var))
+        to_w = "combine -M MultiDimFit model.root  --algo=grid --points 5000  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --verbose -1".format(",".join("k_"+op for op in ops), ranges)
+        to_w += "\n"
+        f.write(to_w)
+        f.write("cd ../../..\n\n\n")
+
+    f.close()
+    #convert to executable
+    st = os.stat(file_name)
+    os.chmod(file_name, st.st_mode | stat.S_IEXEC)
+
 
 def makeActivations(outdir, config):
 
     models = config.getlist("eft", "models")
-    prefix = config.getlist("general", "folder_prefix")
+    prefix = config.get("general", "folder_prefix")
     
     #Activation of t2w:
     file_name = outdir + "/runt.py"
@@ -120,6 +162,7 @@ def makeActivations(outdir, config):
     st = os.stat(file_name)
     os.chmod(file_name, st.st_mode | stat.S_IEXEC)
 
+    """
     file_name = outdir + "/runc.py"
     f2 = open(file_name, 'w')
 
@@ -135,16 +178,16 @@ def makeActivations(outdir, config):
 
     f2.write("def getRange(op):\n")
     f2.write("    d = {\n")
-    f2.write("      'cW': [-0.5,0.5],\n")
-    f2.write("      'cHWB': [-4,4],\n")
+    f2.write("      'cW': [-2,2],\n")
+    f2.write("      'cHWB': [-20,20],\n")
     f2.write("      'cHl3' : [-1,1],\n")
     f2.write("      'cHq1':[-2,2],\n")
     f2.write("      'cHq3': [-0.5,0.5],\n")
     f2.write("      'cll1': [-0.5,0.5],\n")
-    f2.write("      'cHbox': [-10,10],\n")
-    f2.write("      'cHDD' : [-5,5],\n") 
+    f2.write("      'cHbox': [-10,20],\n")
+    f2.write("      'cHDD' : [-20,20],\n") 
     f2.write("      'cHl1' : [-25,25],\n") 
-    f2.write("      'cHW': [-5,5]  ,\n")    
+    f2.write("      'cHW': [-10,5]  ,\n")    
     f2.write("      'cqq11': [-1,1]  ,\n")     
     f2.write("      'cqq1' : [-1,1] ,\n")  
     f2.write("      'cqq31':  [-1,1] ,\n")   
@@ -164,15 +207,46 @@ def makeActivations(outdir, config):
     f2.write('         for vars in glob(dir + "/" + model + "/datacards/" + process + "/*/") :\n')
     f2.write('            os.chdir(vars)\n')
     f2.write('            print("running {} in {}".format(vars, os.getcwd())) \n')
-    f2.write('            to_w = "combine -M MultiDimFit model.root  --algo=grid --points 5000  -m 125   -t -1   --robustFit=1  --redefineSignalPOIs \{\}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}={},{}  --verbose -1".format("k_"+op, "k_"+op, range_[0], range_[1]) \n')
+    f2.write('            to_w = "combine -M MultiDimFit model.root  --algo=grid --points 5000  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}={},{}  --verbose -1".format("k_"+op, "k_"+op, range_[0], range_[1]) \n')
     f2.write('            os.system(to_w)\n')
  
     f2.close()
     #convert to executable
     st = os.stat(file_name)
     os.chmod(file_name, st.st_mode | stat.S_IEXEC)
+    """
 
-    
+    #Activation of fit.sh:
+    file_name = outdir + "/runc.py"
+    f = open(file_name, 'w')
+
+    f.write("#!/usr/bin/env python\n\n")
+    f.write("#-----------------------------------\n")
+    f.write("#     Automatically generated       # \n")
+    f.write("#        by mkDCInputs.py           # \n")
+    f.write("#-----------------------------------\n")
+    f.write("\n\n\n")
+
+    f.write('from glob import glob\n')
+    f.write('import os\n')
+
+    f.write('if __name__ == "__main__":\n')
+    f.write('   base_dir = os.getcwd()\n')
+    f.write('   for dir in glob(base_dir + "/*/"):\n')
+    f.write('      process = dir.split("/")[-2]\n')
+    f.write('      process = process.split("{}")[1]\n'.format(prefix))
+    f.write('      op = process.split("_")[1]\n')
+    f.write('      for model in [{}]:\n'.format(",".join("\"{}\"".format(i) for i in models)))
+    f.write('         print("[INFO] Running for op: {}, model: {}".format(op, model))\n')
+    f.write('         os.chdir(dir + "/" + model)\n')
+    f.write('         os.system("bash fit.sh")\n')
+
+    f.close()
+    #convert to executable
+    st = os.stat(file_name)
+    os.chmod(file_name, st.st_mode | stat.S_IEXEC)
+
+
 def convertCfgLists(list_):
     list_ = [i[1:-1].split(":") for i in list_]
     return [list(map(float, sublist)) for sublist in list_]
@@ -451,6 +525,14 @@ def retireve_samples(config):
                     for file_ in files:
                         if "IN" in file_: file_dict[sh]["IN_{}_{}".format(c[0], c[1])].append(file_)
 
+                if "IN_{}_{}".format(c1[0], c1[1]) in file_dict[sh]:
+                    if len(file_dict[sh]["IN_{}_{}".format(c1[0], c1[1])]) == 0:
+                        sys.exit("[ERROR] Missing Interference sample for op pair {} {}".format(c1[0], c1[1]))
+
+                if "IN_{}_{}".format(c2[0], c2[1]) in file_dict[sh]:
+                    if len(file_dict[sh]["IN_{}_{}".format(c2[0], c2[1])]) == 0:
+                        sys.exit("[ERROR] Missing Interference sample for op pair {} {}".format(c2[0], c2[1]))
+                    
 
         sm_fl = []
         for folder in folders:
@@ -485,45 +567,6 @@ def retrieveDummy(name, var, bins, ranges):
     return th_dict
 
 def makeCut(config):
-    """
-    cuts = {"cut": {}, "execcuts": {}}
-
-    n_cut = config.getlist("cuts", "normalcuts")
-    cuts["cut"]["var"] = []
-    cuts["cut"]["op"] = []
-    cuts["cut"]["value"] = []
-
-    print(n_cut)
-  
-    #if config.has_option("cut", "execcuts"): e_cut = config.getlist("cut", "execcuts").split(",")
-
-    logics = ["==", "<", "<=", ">", ">=", "and", "or"]
-
-    #building normal cuts
-    for cut in  n_cut:
-        for l in logics:
-            if cut.find(l) > -1: 
-                c = cut.split(l)
-                c = [i.strip(" ") for i in c]
-
-                try:
-                    c[1] = float(c[1])
-                    c[0] = str(c[0])
-                except:
-                    pass 
-
-                try:
-                    c[1] = float(c[0])
-                    c[0] = str(c[1])
-                except:
-                    pass 
-
-                cuts["cut"]["var"].append(c[0])
-                cuts["cut"]["op"].append(l)
-                cuts["cut"]["value"].append(c[1])
-
-    return cuts
-    """
     n_cut = config.getlist("cuts", "normalcuts")
     print(" && ".join(cut for cut in n_cut))
     return " && ".join(cut for cut in n_cut)
@@ -557,7 +600,7 @@ def retrieveHisto(paths, tree, var, bins, ranges, luminosity, cuts):
     for v, b, r in zip(var, bins, ranges):
 
         h = ROOT.TH1F(v, v, b, r[0], r[1])
-        print("[INFO] @ Filling {} histo ...".format(v))
+        print("[INFO] @ Filling {} histo, bins: {}, range: {} ...".format(v, b, r))
 
         for path in paths:
             f = ROOT.TFile(path)
@@ -688,6 +731,8 @@ if __name__ == "__main__":
     outfile = config.get("general", "outfile")
     models = config.getlist("eft", "models")
 
+    opr = createOpRange(config)
+
     mkdir(outdir)
     makeActivations(outdir, config) #make scripts for automatic activation of text2workspace and combine
 
@@ -714,7 +759,8 @@ if __name__ == "__main__":
             model_dict = histosToModel(dict((proc,base_histo[proc]) for proc in base_histo.keys() if proc == process), model_type=mod)
             write(model_dict, outname = mod_path + "/rootFile/" + outfile)
 
-            makeExec(mod, process, config, mod_path)
+            makeExecRunt(mod, process, config, mod_path)
+            makeExecRunc(process, config, mod_path, opr)
             
             print("[INFO] Generating dummies ...")
             if bool(config.get("d_structure", "makeDummy")): makeStructure(model_dict, mod, mod_path)

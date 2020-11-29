@@ -20,7 +20,7 @@ def groupSinglets(comp_name):
         ops = comp_name.split(type_ + "_")[1]
         if len(ops.split("_")) == 2: 
             ops = ops.split("_")
-            newName += ops[0] + "_" + ops[1]
+            newName += ops[0] + " " + ops[1]
         else:
             newName += ops
 
@@ -65,7 +65,11 @@ def makePlot(h_dict, model, config, outdir):
 
     colors = config.getlist("d_plot", "colors")
     c_types = [i.split(":")[0] for i in colors]
-    c_vals = [int(i.split(":")[1]) for i in colors]
+    c_vals = [[int(j) for j in i.split(":")[1:]] for i in colors]
+
+    user_colors = {}
+    for i,j in zip(c_types, c_vals):
+        user_colors[i] = j
 
     group = []
     g_colors = []
@@ -85,15 +89,27 @@ def makePlot(h_dict, model, config, outdir):
     for sample in h_dict:
         first_var = h_dict[sample].keys()[0]
         structure = h_dict[sample][first_var].keys()
-        
-        op = sample.split("_")[1]
-        
-        colors_op = [[i + "_" + op, j] for i,j in zip(c_types,c_vals) if i!="sm" and i != "Data" and i!="DATA"]
-        cd = dict((i[0],i[1]) for i in colors_op)
-        if "sm" in c_types:
-            cd["sm"] = c_vals[c_types.index("sm")]
-        cd["Data"] = 1
-        cd["DATA"] = 1
+        ops = sample.split("_")[1:]
+        cd = {}
+
+        for key in user_colors.keys():
+            if key != "sm" and key not in config.getlist("variables", "makeDummy"):
+                if len(user_colors[key]) == len(ops):
+                    for j,op in enumerate(ops):
+                        cd[key + "_" + op] = user_colors[key][j]
+
+                if len(user_colors[key]) < len(ops):
+                    cd[key + "_" + "_".join(op for op in ops)] = user_colors[key][0]
+
+                if len(user_colors[key]) > len(ops):
+                    for j,op in enumerate(ops):
+                        cd[key + "_" + op] = user_colors[key][j]
+            else:
+                cd[key] = user_colors[key][0]
+
+        for key in config.getlist("variables", "makeDummy"):
+            if key not in user_colors.keys():
+                cd[key] = 1
 
         file_name = outdir + "/plot_" + sample + "_" + model + ".py"
         f = open(file_name, 'w')
@@ -200,10 +216,10 @@ def makePlot(h_dict, model, config, outdir):
             if key in cd:
                 color = cd[key]
 
-            if i > len(colors): sys.exit("[ERROR]: Colors not sufficient, add more...")
+            if i > len(cd.keys()): sys.exit("[ERROR]: Colors not sufficient, add more...")
 
             f.write('plot["{}"]  = {} \n'.format(key, "{"))
-            f.write("        'color' : {}, \n".format(color))
+            f.write("        'color' : {}, \n".format(cd[key]))
             f.write("        'isSignal' : {}, \n".format(sig_val))
             f.write("        'isData' : {}, \n".format(isData))
             f.write("        'scale' : 1, \n")
