@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 from collections import OrderedDict
 
 def groupSinglets(comp_name):
@@ -477,50 +478,104 @@ def makeCuts(h_dict, model, outdir):
         f.close()
 
 
-def switchNuis(comp_1, nuis_comp_1, comp_2):
-    #this stands also if the component is not sm
-    #print("sigma_{} = ({}-1) * {}/{} + 1 = {}".format("2", nuis_comp_1, comp_1, comp_2, (nuis_comp_1 - 1) * float(comp_1)/comp_2 + 1))
-    return (nuis_comp_1 - 1) * float(comp_1)/comp_2 + 1
+def whatNuis(comp):
+
+    test = np.array(["sm", "lin", "quad", "mixed"])
+    base = np.array(comp.split("_")) #sm #lin #quad #
+
+    if base.size == 1: return base #only identical sm has 1 len
+
+    mask = np.isin(base, test)
+    c = base[mask]
+    ops = np.setdiff1d(base, c)
+
+    #so finally this component
+    #receives nuis contributions from these
+
+    final = [mod + "_" + op  for mod in c if mod != "sm" for op in ops]
+    if "sm" in c:
+        final.append("sm")
+
+    return final 
+
 
 def propagateNuis(h_dict, nuis_dict):
 
-    #only lnN nuisances can be propagated
-    #checks are made
+    var = h_dict.keys()[0]
+    s_int = h_dict[var].keys()
+
+    for key_name in nuis_dict.keys():
+        samples_dict = nuis_dict[key_name]['samples']
+        
+        for sam in samples_dict.keys():
+            sam_nuis_prop = 0
+            c = whatNuis(sam)
+            sample_nuis = samples_dict[sam] - 1
 
 
-    for nuis_name in nuis_dict.keys():
-        if nuis_dict[nuis_name]['type'] == "lnN":
-            if len(nuis_dict[nuis_name]['samples'].keys()) > 1:
-                sys.exit("[ERROR] Cannot propagate more than one nuisance, there is \
-                ambiguity... Please insert only one component for each nuisance and it will be propagated")
+            #propagation
+            if sam in s_int:
+                #comp_yield = float('%.4f'%h_dict[var][sam].Integral())
+                comp_yield = h_dict[var][sam].Integral()
+            else: continue
 
-            for sample in nuis_dict[nuis_name]['samples'].keys():
-            
-                #cerco questo oggetto nella dict degli histo
-                comp_yield = 0
-                comp_nuis = nuis_dict[nuis_name]['samples'][sample]
-                for var in h_dict.keys():
-                    compnames = h_dict[var].keys()
-                    for j in compnames:
-                        if j == sample:
-                            #We do this because mkDatacards saves only the first 4 decimal places
-                            #in the rate. Without this the models are distorted... Not nice but still..
-                            #card.write(''.join(('%-.4f' % yieldsSig[name]) line 240
-                            comp_yield = float('%.4f'%h_dict[var][j].Integral())
-                    # propagate to other components having
-                    # the nuis name in their name
+            for basic_component in c:
+                if basic_component in s_int and basic_component in samples_dict.keys():
+                    #yield_ = float('%.4f'%h_dict[var][basic_component].Integral())
+                    yield_ = h_dict[var][basic_component].Integral()
 
-                    for cn in compnames:
-                        if (sample in cn) and sample != cn:
-                            comp2_yield = float('%.4f'%h_dict[var][cn].Integral())
-                            #print(cn, comp2_yield)
-                            comp2_nuis = switchNuis(comp_yield, comp_nuis, comp2_yield)
-                            #print(comp2_nuis)
+                    sam_nuis_prop += (yield_ * samples_dict[basic_component]) / comp_yield
 
-                            nuis_dict[nuis_name]['samples'][cn] = comp2_nuis
+            nuis_dict[key_name]['samples'][sam] = sam_nuis_prop
 
-    #print(nuis_dict)
     return nuis_dict
+
+            
+
+# def switchNuis(comp_1, nuis_comp_1, comp_2):
+#     #this stands also if the component is not sm
+#     #print("sigma_{} = ({}-1) * {}/{} + 1 = {}".format("2", nuis_comp_1, comp_1, comp_2, (nuis_comp_1 - 1) * float(comp_1)/comp_2 + 1))
+#     return (nuis_comp_1 - 1) * float(comp_1)/comp_2 + 1
+
+# def propagateNuis(h_dict, nuis_dict):
+
+#     #only lnN nuisances can be propagated
+#     #checks are made
+
+
+#     for nuis_name in nuis_dict.keys():
+#         if nuis_dict[nuis_name]['type'] == "lnN":
+#             if len(nuis_dict[nuis_name]['samples'].keys()) > 1:
+#                 sys.exit("[ERROR] Cannot propagate more than one nuisance, there is \
+#                 ambiguity... Please insert only one component for each nuisance and it will be propagated")
+
+#             for sample in nuis_dict[nuis_name]['samples'].keys():
+            
+#                 #cerco questo oggetto nella dict degli histo
+#                 comp_yield = 0
+#                 comp_nuis = nuis_dict[nuis_name]['samples'][sample]
+#                 for var in h_dict.keys():
+#                     compnames = h_dict[var].keys()
+#                     for j in compnames:
+#                         if j == sample:
+#                             #We do this because mkDatacards saves only the first 4 decimal places
+#                             #in the rate. Without this the models are distorted... Not nice but still..
+#                             #card.write(''.join(('%-.4f' % yieldsSig[name]) line 240
+#                             comp_yield = float('%.4f'%h_dict[var][j].Integral())
+#                     # propagate to other components having
+#                     # the nuis name in their name
+
+#                     for cn in compnames:
+#                         if (sample in cn) and sample != cn:
+#                             comp2_yield = float('%.4f'%h_dict[var][cn].Integral())
+#                             #print(cn, comp2_yield)
+#                             comp2_nuis = switchNuis(comp_yield, comp_nuis, comp2_yield)
+#                             #print(comp2_nuis)
+
+#                             nuis_dict[nuis_name]['samples'][cn] = comp2_nuis
+
+#     #print(nuis_dict)
+#     return nuis_dict
 
 
 def check_Nuisances(nuis_dict, h_dict):
@@ -538,9 +593,24 @@ def check_Nuisances(nuis_dict, h_dict):
     return True
 
 
-def makeNuisDict(d_name_, name_, type_, samples_):
+def makeNuisDict(config, d_name_, name_, type_, samples_, components):
 
     n_d = {}
+
+    if len(samples_) == 1 and samples_[0][0].split(":")[0] == "all":
+        val = float(samples_[0][0].split(":")[1])
+        t = type_[0]
+        dn = d_name_[0]
+        n = name_[0]
+        n_d[dn] = {}
+        n_d[dn]['name'] = n
+        n_d[dn]['type'] = t
+        n_d[dn]['samples'] = {}
+        for comp in components:
+            if comp not in config.getlist("variables", "makeDummy"):
+                n_d[dn]['samples'][comp] = val
+
+        return n_d
 
     for dn, n, t, s in zip(d_name_, name_, type_, samples_):
         n_d[dn] = {}
@@ -560,7 +630,7 @@ def makeNuisances(h_dict, model, config, outdir):
 
     #THIS PART IS NOT PERFECT
     #CAN WORK IF THE NUISANCE IS ONLY ON SM
-    #DID NOT CHECK FOR OTHER SCENARIO
+    #DID NOT CHECK FOR OTHER SCENARIOS
 
     defname = config.getlist("d_nuisances", "defname") #the name in dict key
     name = config.getlist("d_nuisances", "name") # the 'name' field
@@ -571,11 +641,19 @@ def makeNuisances(h_dict, model, config, outdir):
 
     for sample in h_dict:
 
-        nd = makeNuisDict(defname, name, types, samples)
+        components = h_dict[sample][h_dict[sample].keys()[0]].keys()
+
+        nd = makeNuisDict(config, defname, name, types, samples, components)
+
+
         if not check_Nuisances(nd, h_dict):
             sys.exit("[ERROR] Nuisances specified in cfg file are not present in components dict ... Check inputs")
 
-        if bool(config.get("d_nuisances", "propagate")):
+        if config.get("d_nuisances", "propagate") == "True":
+            #
+            # HORRIBLE FIX FOR 1D NUIS
+            #
+
             nd = propagateNuis(h_dict[sample], nd)
 
         file_name = outdir + "/nuisances_" + sample + "_" + model + ".py"

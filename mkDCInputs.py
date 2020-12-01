@@ -536,7 +536,7 @@ def retireve_samples(config):
 
         sm_fl = []
         for folder in folders:
-            sm_fl += glob(folder + "/*" + s + "*SM*.root")
+            sm_fl += glob(folder + "/*" + s + "*SM.root")
 
         file_dict[sh]["SM"] = sm_fl
 
@@ -763,14 +763,14 @@ if __name__ == "__main__":
             makeExecRunc(process, config, mod_path, opr)
             
             print("[INFO] Generating dummies ...")
-            if bool(config.get("d_structure", "makeDummy")): makeStructure(model_dict, mod, mod_path)
-            if bool(config.get("d_plot", "makeDummy")): makePlot(model_dict, mod, config, mod_path)
-            if bool(config.get("d_samples", "makeDummy")): makeSamples(model_dict, mod, config, mod_path)
-            if bool(config.get("d_configuration", "makeDummy")): makeConfiguration(model_dict, mod, config, mod_path)
-            if bool(config.get("d_alias", "makeDummy")): makeAliases(model_dict, mod, mod_path)
-            if bool(config.get("d_cuts", "makeDummy")): makeCuts(model_dict, mod, mod_path)
-            if bool(config.get("d_variables", "makeDummy")): makeVariables(model_dict, mod, config, mod_path)
-            if bool(config.get("d_nuisances", "makeDummy")): makeNuisances(model_dict, mod, config, mod_path)
+            if config.get("d_structure", "makeDummy") == "True": makeStructure(model_dict, mod, mod_path)
+            if config.get("d_plot", "makeDummy") == "True": makePlot(model_dict, mod, config, mod_path)
+            if config.get("d_samples", "makeDummy") == "True": makeSamples(model_dict, mod, config, mod_path)
+            if config.get("d_configuration", "makeDummy") == "True": makeConfiguration(model_dict, mod, config, mod_path)
+            if config.get("d_alias", "makeDummy") == "True": makeAliases(model_dict, mod, mod_path)
+            if config.get("d_cuts", "makeDummy") == "True": makeCuts(model_dict, mod, mod_path)
+            if config.get("d_variables", "makeDummy") == "True": makeVariables(model_dict, mod, config, mod_path)
+            if config.get("d_nuisances", "makeDummy") == "True": makeNuisances(model_dict, mod, config, mod_path)
 
     
     print("[INFO] @Done ...")
