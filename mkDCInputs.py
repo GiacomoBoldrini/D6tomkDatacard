@@ -466,6 +466,34 @@ def redemensionOpinput(config):
         return ops
 
 
+def list_duplicates_of(seq,item):
+    start_at = -1
+    locs = []
+    while True:
+        try:
+            loc = seq.index(item,start_at+1)
+        except ValueError:
+            break
+        else:
+            locs.append(loc)
+            start_at = loc
+    return locs
+
+
+def cleanDuplicates(paths):
+    p  = [i.split("/")[-1] for i in paths]
+    cleaned_paths = paths
+    for item in p:
+        #appending only the first of the duplicates
+        dup = list_duplicates_of(p, item)
+        if dup > 0:
+            for d in dup[1:]:
+                cleaned_paths.pop(d)
+                p.pop(d)
+
+    return cleaned_paths
+
+
 def retireve_samples(config):
 
     print("[INFO] Retrieving samples ...")
@@ -498,6 +526,10 @@ def retireve_samples(config):
                 for file_ in files:
                     if "QU" in file_: file_dict[sh]["QU_{}".format(op)].append(file_)
                     if "LI" in file_: file_dict[sh]["LI_{}".format(op)].append(file_)
+
+            file_dict[sh]["QU_{}".format(op)] = cleanDuplicates(file_dict[sh]["QU_{}".format(op)])
+            file_dict[sh]["LI_{}".format(op)] = cleanDuplicates(file_dict[sh]["LI_{}".format(op)])
+            
 
                         
         #scan interference if present
@@ -532,11 +564,15 @@ def retireve_samples(config):
                 if "IN_{}_{}".format(c2[0], c2[1]) in file_dict[sh]:
                     if len(file_dict[sh]["IN_{}_{}".format(c2[0], c2[1])]) == 0:
                         sys.exit("[ERROR] Missing Interference sample for op pair {} {}".format(c2[0], c2[1]))
+
+                file_dict[sh]["IN_{}_{}".format(c[0], c[1])] = cleanDuplicates(file_dict[sh]["IN_{}_{}".format(c[0], c[1])])
                     
 
         sm_fl = []
         for folder in folders:
             sm_fl += glob(folder + "/*" + s + "*SM.root")
+
+        sm_fl = cleanDuplicates(sm_fl)
 
         file_dict[sh]["SM"] = sm_fl
 
