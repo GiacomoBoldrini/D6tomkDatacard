@@ -18,7 +18,7 @@ def prettyPrintConfig(config, file_dict):
     print(" -------- Generating histos --------")
     print("")
 
-    fmt = '{0:>21}: {1:>1}'
+    fmt = '{0:>22}: {1:>1}'
     print(fmt.format("Processes", "{}".format(",".join(k for k in config.getlist("general", "sample")))))
     print(fmt.format("Main output folder", "{}".format(config.get("general", "outfolder"))))
     print(fmt.format("Output sub-folder/s", "{}".format(",".join(config.get("general", "folder_prefix")+k for k in config.getlist("general", "sample")))))
@@ -27,6 +27,7 @@ def prettyPrintConfig(config, file_dict):
     print(fmt.format("Combine Model/s","{}".format(",".join(k for k in config.getlist("eft", "models")))))
     print(fmt.format("Variables/s","{}".format(",".join(k for k in config.getlist("variables", "treenames")))))
     print(fmt.format("Bins for variable/s","{}".format(",".join(k for k in config.getlist("variables", "bins")))))
+    print(fmt.format("Binsize for variable/s","{}".format(",".join(k for k in config.getlist("variables", "binsize")))))
     print(fmt.format("Ranges for variable/s", "{}".format(",".join(k for k in config.getlist("variables", "xrange")))))
     print("")
     if len(config.getlist("general", "sample")) < len(config.getlist("eft", "operators")):
@@ -161,6 +162,60 @@ def makeActivations(outdir, config):
     #convert to executable
     st = os.stat(file_name)
     os.chmod(file_name, st.st_mode | stat.S_IEXEC)
+
+    """
+    file_name = outdir + "/runc.py"
+    f2 = open(file_name, 'w')
+
+    f2.write("#!/usr/bin/env python\n\n")
+    f2.write("#-----------------------------------\n")
+    f2.write("#     Automatically generated       # \n")
+    f2.write("#        by mkDCInputs.py           # \n")
+    f2.write("#-----------------------------------\n")
+    f2.write("\n\n\n")
+
+    f2.write('from glob import glob\n')
+    f2.write('import os\n')
+
+    f2.write("def getRange(op):\n")
+    f2.write("    d = {\n")
+    f2.write("      'cW': [-2,2],\n")
+    f2.write("      'cHWB': [-20,20],\n")
+    f2.write("      'cHl3' : [-1,1],\n")
+    f2.write("      'cHq1':[-2,2],\n")
+    f2.write("      'cHq3': [-0.5,0.5],\n")
+    f2.write("      'cll1': [-0.5,0.5],\n")
+    f2.write("      'cHbox': [-10,20],\n")
+    f2.write("      'cHDD' : [-20,20],\n") 
+    f2.write("      'cHl1' : [-25,25],\n") 
+    f2.write("      'cHW': [-10,5]  ,\n")    
+    f2.write("      'cqq11': [-1,1]  ,\n")     
+    f2.write("      'cqq1' : [-1,1] ,\n")  
+    f2.write("      'cqq31':  [-1,1] ,\n")   
+    f2.write("      'cqq3':  [-1,1] ,\n")   
+    f2.write("      'cll':   [-70,70]\n")   
+    f2.write("    }\n\n")
+    f2.write("    return d[op]\n") 
+
+    f2.write('if __name__ == "__main__":\n')
+    f2.write('   base_dir = os.getcwd()\n')
+    f2.write('   for dir in glob(base_dir + "/*/"):\n')
+    f2.write('      process = dir.split("/")[-2]\n')
+    f2.write('      process = process.split("to_Latinos_")[1]\n')
+    f2.write('      op = process.split("_")[1]\n')
+    f2.write('      range_ = getRange(op)\n')
+    f2.write('      for model in [{}]:\n'.format(",".join("\"{}\"".format(i) for i in models)))
+    f2.write('         for vars in glob(dir + "/" + model + "/datacards/" + process + "/*/") :\n')
+    f2.write('            os.chdir(vars)\n')
+    f2.write('            print("running {} in {}".format(vars, os.getcwd())) \n')
+    f2.write('            to_w = "combine -M MultiDimFit model.root  --algo=grid --points 5000  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}={},{}  --verbose -1".format("k_"+op, "k_"+op, range_[0], range_[1]) \n')
+    f2.write('            os.system(to_w)\n')
+ 
+    f2.close()
+    #convert to executable
+    st = os.stat(file_name)
+    os.chmod(file_name, st.st_mode | stat.S_IEXEC)
+    """
 
     #Activation of fit.sh:
     file_name = outdir + "/runc.py"
@@ -412,34 +467,6 @@ def redemensionOpinput(config):
         return ops
 
 
-def list_duplicates_of(seq,item):
-    start_at = -1
-    locs = []
-    while True:
-        try:
-            loc = seq.index(item,start_at+1)
-        except ValueError:
-            break
-        else:
-            locs.append(loc)
-            start_at = loc
-    return locs
-
-
-def cleanDuplicates(paths):
-    p  = [i.split("/")[-1] for i in paths]
-    cleaned_paths = paths
-    for item in p:
-        #appending only the first of the duplicates
-        dup = list_duplicates_of(p, item)
-        if dup > 0:
-            for d in dup[1:]:
-                cleaned_paths.pop(d)
-                p.pop(d)
-
-    return cleaned_paths
-
-
 def retireve_samples(config):
 
     print("[INFO] Retrieving samples ...")
@@ -473,10 +500,6 @@ def retireve_samples(config):
                     if "QU" in file_: file_dict[sh]["QU_{}".format(op)].append(file_)
                     if "LI" in file_: file_dict[sh]["LI_{}".format(op)].append(file_)
 
-            file_dict[sh]["QU_{}".format(op)] = cleanDuplicates(file_dict[sh]["QU_{}".format(op)])
-            file_dict[sh]["LI_{}".format(op)] = cleanDuplicates(file_dict[sh]["LI_{}".format(op)])
-            
-
                         
         #scan interference if present
         if int_:
@@ -484,27 +507,24 @@ def retireve_samples(config):
                 file_dict[sh]["IN_{}_{}".format(c1[0], c1[1])] = []
                 file_dict[sh]["IN_{}_{}".format(c2[0], c2[1])] = []
 
-                files1 = []
-                files2 = []
-
                 for folder in folders:
                     #either cG_cGtil or cGtil_cG, not both (repetition should be avoided)
-                    files1 += glob(folder + "/*_" + s + "_{}_{}_".format(c1[0], c1[1]) + "*.root")
-                    files2 += glob(folder + "/*_" + s + "_{}_{}_".format(c2[0], c2[1]) + "*.root")
+                    files1 = glob(folder + "/*_" + s + "_{}_{}_".format(c1[0], c1[1]) + "*.root")
+                    files2 = glob(folder + "/*_" + s + "_{}_{}_".format(c2[0], c2[1]) + "*.root")
 
-                if len(files1) != 0 and len(files2) == 0: 
-                    files = files1
-                    c = c1
-                    del file_dict[sh]["IN_{}_{}".format(c2[0], c2[1])]
-                elif len(files1) == 0 and len(files2) != 0: 
-                    files = files2
-                    c = c2
-                    del file_dict[sh]["IN_{}_{}".format(c1[0], c1[1])]
-                else:
-                    continue
+                    if len(files1) != 0 and len(files2) == 0: 
+                        files = files1
+                        c = c1
+                        del file_dict[sh]["IN_{}_{}".format(c2[0], c2[1])]
+                    elif len(files1) == 0 and len(files2) != 0: 
+                        files = files2
+                        c = c2
+                        del file_dict[sh]["IN_{}_{}".format(c1[0], c1[1])]
+                    else:
+                        continue
 
-                for file_ in files:
-                    if "IN" in file_: file_dict[sh]["IN_{}_{}".format(c[0], c[1])].append(file_)
+                    for file_ in files:
+                        if "IN" in file_: file_dict[sh]["IN_{}_{}".format(c[0], c[1])].append(file_)
 
                 if "IN_{}_{}".format(c1[0], c1[1]) in file_dict[sh]:
                     if len(file_dict[sh]["IN_{}_{}".format(c1[0], c1[1])]) == 0:
@@ -513,15 +533,11 @@ def retireve_samples(config):
                 if "IN_{}_{}".format(c2[0], c2[1]) in file_dict[sh]:
                     if len(file_dict[sh]["IN_{}_{}".format(c2[0], c2[1])]) == 0:
                         sys.exit("[ERROR] Missing Interference sample for op pair {} {}".format(c2[0], c2[1]))
-
-                file_dict[sh]["IN_{}_{}".format(c[0], c[1])] = cleanDuplicates(file_dict[sh]["IN_{}_{}".format(c[0], c[1])])
                     
 
         sm_fl = []
         for folder in folders:
             sm_fl += glob(folder + "/*" + s + "*SM.root")
-
-        sm_fl = cleanDuplicates(sm_fl)
 
         file_dict[sh]["SM"] = sm_fl
 
@@ -551,10 +567,11 @@ def retrieveDummy(name, var, bins, ranges):
 
     return th_dict
 
+
 def makeCut(config):
     n_cut = config.getlist("cuts", "normalcuts")
+    print(" && ".join(cut for cut in n_cut))
     return " && ".join(cut for cut in n_cut)
-
 
 def isCut(cutdf, cuts):
 
@@ -563,8 +580,15 @@ def isCut(cutdf, cuts):
         if not eval("cutdf['{}'][0] {} {}".format(var, op, value)):
             return True
 
+def mkLogHisto(v, b, low, up):
 
-def retrieveHisto(paths, tree, var, bins, ranges, luminosity, cuts):
+    if low < 0:
+        sys.exit("[ERROR] Log scale in a negative range. Check .cfg ...")
+    edges = np.logspace(mt.log(low,10), mt.log(up,10), b+1)
+    htemp = ROOT.TH1F(v + "_temp", v + "_temp", b, edges)
+    return htemp
+
+def retrieveHisto(paths, tree, var, bins, binsize, ranges, luminosity, cuts):
     
     chain = ROOT.TChain(tree)
     for path in paths:
@@ -573,24 +597,38 @@ def retrieveHisto(paths, tree, var, bins, ranges, luminosity, cuts):
     if var == "*":
         var = [i.GetName() for i in chain.GetListOfBranches()]
         bins = bins*len(var)
+        binsize = binsize*len(var)
         ranges = ranges*len(var)
 
     if type(var) != list: 
         var = [var]
         bins = [bins]
+        binsize = [binsize]
         ranges = [ranges]
 
     th_dict = dict.fromkeys(var)
-    for v, b, r in zip(var, bins, ranges):
+    for v, b, bs, r in zip(var, bins, binsize, ranges):
 
-        h = ROOT.TH1F(v, v, b, r[0], r[1])
-        print("[INFO] @ Filling {} histo, bins: {}, range: {} ...".format(v, b, r))
+        if bs == "fix":
+            h = ROOT.TH1F(v, v, b, r[0], r[1])
+
+        if bs == "log":
+            h = mkLogHisto(v, b, r[0], r[1])
+
+        elif bs != "fix" and bs !=  "log":
+            sys.exit("[ERROR] Choose binsize between log and fix ... ")
+
+        print("[INFO] @ Filling {} histo, bins: {}, binsize: {}, range: {} ...".format(v, b, bs, r))
 
         for path in paths:
             f = ROOT.TFile(path)
             t = f.Get(tree)
 
-            htemp = ROOT.TH1F(v + "_temp", v + "_temp", b, r[0], r[1])
+            if bs == "fix":
+                htemp = ROOT.TH1F(v + "_temp", v + "_temp", b, r[0], r[1])
+
+            elif bs == "log":
+                htemp = mkLogHisto(v, b, r[0], r[1])
 
             #reading some important infos
             global_numbers             = f.Get ( tree + "_nums")
@@ -633,6 +671,7 @@ def makeHistos(config, file_dict):
 
     vars_ = config.getlist("variables", "treenames")
     bins = [int(i) for i in config.getlist("variables", "bins")]
+    binsize = config.getlist("variables", "binsize")
     ranges = convertCfgLists(config.getlist("variables", "xrange"))
     histo_name = config.getlist("variables", "histonames")
     lumi = float(config.get("general", "lumi"))
@@ -640,8 +679,8 @@ def makeHistos(config, file_dict):
     dummies = []
     if config.has_option("variables", "makeDummy"): dummies = config.getlist("variables", "makeDummy")
 
-    if vars_[0] != "*" and len(vars_) != len(bins) or len(vars_) != len(ranges):
-        sys.exit("[ERROR] var names and bins/xranges do not match. Ignore or take action ...")
+    if vars_[0] != "*" and len(vars_) != len(bins) or len(vars_) != len(ranges) or len(vars_) != len(binsize):
+        sys.exit("[ERROR] var names and bins/binsize/xranges do not match. Ignore or take action ...")
 
     cut = "1==1"
     if config.has_option("cuts", "normalcuts"): cut = makeCut(config)    
@@ -655,9 +694,9 @@ def makeHistos(config, file_dict):
                 base_histos[s][component] = {}
                 print("[INFO] @ ---- Starting filling histos for sample {}, component: {} ---- \
                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, component))
-                for var, bins_, ranges_ in zip(vars_, bins, ranges) :
+                for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
                     nt = (file_dict[s][component][0].split("ntuple_")[1]).split(".root")[0]
-                    base_histos[s][component].update(retrieveHisto(file_dict[s][component], nt, var, bins_, ranges_, lumi, cut))
+                    base_histos[s][component].update(retrieveHisto(file_dict[s][component], nt, var, bins_, binsize_, ranges_, lumi, cut))
                 
         for dummy in dummies:
             print("[INFO] @ ---- Filling dummy histos for sample {}, component: {} ---- \
@@ -667,8 +706,8 @@ def makeHistos(config, file_dict):
             for var, bins_, ranges_ in zip(vars_, bins, ranges) :
                 base_histos[s][dummy].update(retrieveDummy( dummy, var, bins_, ranges_))
                     
-    base_histos = invertHistoDict(base_histos)
-    
+    base_histos = invertHistoDict(base_histos)  
+
     return base_histos
 
 
