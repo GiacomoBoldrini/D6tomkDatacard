@@ -162,60 +162,6 @@ def makeActivations(outdir, config):
     st = os.stat(file_name)
     os.chmod(file_name, st.st_mode | stat.S_IEXEC)
 
-    """
-    file_name = outdir + "/runc.py"
-    f2 = open(file_name, 'w')
-
-    f2.write("#!/usr/bin/env python\n\n")
-    f2.write("#-----------------------------------\n")
-    f2.write("#     Automatically generated       # \n")
-    f2.write("#        by mkDCInputs.py           # \n")
-    f2.write("#-----------------------------------\n")
-    f2.write("\n\n\n")
-
-    f2.write('from glob import glob\n')
-    f2.write('import os\n')
-
-    f2.write("def getRange(op):\n")
-    f2.write("    d = {\n")
-    f2.write("      'cW': [-2,2],\n")
-    f2.write("      'cHWB': [-20,20],\n")
-    f2.write("      'cHl3' : [-1,1],\n")
-    f2.write("      'cHq1':[-2,2],\n")
-    f2.write("      'cHq3': [-0.5,0.5],\n")
-    f2.write("      'cll1': [-0.5,0.5],\n")
-    f2.write("      'cHbox': [-10,20],\n")
-    f2.write("      'cHDD' : [-20,20],\n") 
-    f2.write("      'cHl1' : [-25,25],\n") 
-    f2.write("      'cHW': [-10,5]  ,\n")    
-    f2.write("      'cqq11': [-1,1]  ,\n")     
-    f2.write("      'cqq1' : [-1,1] ,\n")  
-    f2.write("      'cqq31':  [-1,1] ,\n")   
-    f2.write("      'cqq3':  [-1,1] ,\n")   
-    f2.write("      'cll':   [-70,70]\n")   
-    f2.write("    }\n\n")
-    f2.write("    return d[op]\n") 
-
-    f2.write('if __name__ == "__main__":\n')
-    f2.write('   base_dir = os.getcwd()\n')
-    f2.write('   for dir in glob(base_dir + "/*/"):\n')
-    f2.write('      process = dir.split("/")[-2]\n')
-    f2.write('      process = process.split("to_Latinos_")[1]\n')
-    f2.write('      op = process.split("_")[1]\n')
-    f2.write('      range_ = getRange(op)\n')
-    f2.write('      for model in [{}]:\n'.format(",".join("\"{}\"".format(i) for i in models)))
-    f2.write('         for vars in glob(dir + "/" + model + "/datacards/" + process + "/*/") :\n')
-    f2.write('            os.chdir(vars)\n')
-    f2.write('            print("running {} in {}".format(vars, os.getcwd())) \n')
-    f2.write('            to_w = "combine -M MultiDimFit model.root  --algo=grid --points 5000  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}={},{}  --verbose -1".format("k_"+op, "k_"+op, range_[0], range_[1]) \n')
-    f2.write('            os.system(to_w)\n')
- 
-    f2.close()
-    #convert to executable
-    st = os.stat(file_name)
-    os.chmod(file_name, st.st_mode | stat.S_IEXEC)
-    """
-
     #Activation of fit.sh:
     file_name = outdir + "/runc.py"
     f = open(file_name, 'w')
@@ -538,24 +484,27 @@ def retireve_samples(config):
                 file_dict[sh]["IN_{}_{}".format(c1[0], c1[1])] = []
                 file_dict[sh]["IN_{}_{}".format(c2[0], c2[1])] = []
 
+                files1 = []
+                files2 = []
+
                 for folder in folders:
                     #either cG_cGtil or cGtil_cG, not both (repetition should be avoided)
-                    files1 = glob(folder + "/*_" + s + "_{}_{}_".format(c1[0], c1[1]) + "*.root")
-                    files2 = glob(folder + "/*_" + s + "_{}_{}_".format(c2[0], c2[1]) + "*.root")
+                    files1 += glob(folder + "/*_" + s + "_{}_{}_".format(c1[0], c1[1]) + "*.root")
+                    files2 += glob(folder + "/*_" + s + "_{}_{}_".format(c2[0], c2[1]) + "*.root")
 
-                    if len(files1) != 0 and len(files2) == 0: 
-                        files = files1
-                        c = c1
-                        del file_dict[sh]["IN_{}_{}".format(c2[0], c2[1])]
-                    elif len(files1) == 0 and len(files2) != 0: 
-                        files = files2
-                        c = c2
-                        del file_dict[sh]["IN_{}_{}".format(c1[0], c1[1])]
-                    else:
-                        continue
+                if len(files1) != 0 and len(files2) == 0: 
+                    files = files1
+                    c = c1
+                    del file_dict[sh]["IN_{}_{}".format(c2[0], c2[1])]
+                elif len(files1) == 0 and len(files2) != 0: 
+                    files = files2
+                    c = c2
+                    del file_dict[sh]["IN_{}_{}".format(c1[0], c1[1])]
+                else:
+                    continue
 
-                    for file_ in files:
-                        if "IN" in file_: file_dict[sh]["IN_{}_{}".format(c[0], c[1])].append(file_)
+                for file_ in files:
+                    if "IN" in file_: file_dict[sh]["IN_{}_{}".format(c[0], c[1])].append(file_)
 
                 if "IN_{}_{}".format(c1[0], c1[1]) in file_dict[sh]:
                     if len(file_dict[sh]["IN_{}_{}".format(c1[0], c1[1])]) == 0:
@@ -604,7 +553,6 @@ def retrieveDummy(name, var, bins, ranges):
 
 def makeCut(config):
     n_cut = config.getlist("cuts", "normalcuts")
-    print(" && ".join(cut for cut in n_cut))
     return " && ".join(cut for cut in n_cut)
 
 
