@@ -573,7 +573,6 @@ def makeCut(config):
     print(" && ".join(cut for cut in n_cut))
     return " && ".join(cut for cut in n_cut)
 
-
 def isCut(cutdf, cuts):
 
     isCut = False 
@@ -586,7 +585,6 @@ def mkLogHisto(v, b, low, up):
     edges = np.logspace(mt.log(low,10), mt.log(up,10), b+1)
     htemp = ROOT.TH1F(v + "_temp", v + "_temp", b, edges)
     return htemp
-
 
 def retrieveHisto(paths, tree, var, bins, binsize, ranges, luminosity, cuts):
     
@@ -609,7 +607,12 @@ def retrieveHisto(paths, tree, var, bins, binsize, ranges, luminosity, cuts):
     th_dict = dict.fromkeys(var)
     for v, b, bs, r in zip(var, bins, binsize, ranges):
 
-        h = ROOT.TH1F(v, v, b, r[0], r[1])
+        if bs == "fix":
+            h = ROOT.TH1F(v, v, b, r[0], r[1])
+
+        elif bs == "log":
+            h = mkLogHisto(v, b, r[0], r[1])
+
         print("[INFO] @ Filling {} histo, bins: {}, binsize: {}, range: {} ...".format(v, b, bs, r))
 
         for path in paths:
@@ -637,10 +640,6 @@ def retrieveHisto(paths, tree, var, bins, binsize, ranges, luminosity, cuts):
             #overflow bin count -> last bin count
             htemp.SetBinContent(htemp.GetNbinsX(), htemp.GetBinContent(h.GetNbinsX()) + htemp.GetBinContent(h.GetNbinsX() + 1))
             htemp.SetBinContent(htemp.GetNbinsX() + 1, 0.)
-
-            xaxis = htemp.GetXaxis()
-            for l in range (1, htemp.GetNbinsX()+1):
-                print("Bin number {} [{}, {}]= {}".format(l, xaxis.GetBinLowEdge(l), xaxis.GetBinUpEdge(l), htemp.GetBinContent(l)))
 
             h.Add(htemp)
 
