@@ -18,7 +18,7 @@ def prettyPrintConfig(config, file_dict):
     print(" -------- Generating histos --------")
     print("")
 
-    fmt = '{0:>21}: {1:>1}'
+    fmt = '{0:>22}: {1:>1}'
     print(fmt.format("Processes", "{}".format(",".join(k for k in config.getlist("general", "sample")))))
     print(fmt.format("Main output folder", "{}".format(config.get("general", "outfolder"))))
     print(fmt.format("Output sub-folder/s", "{}".format(",".join(config.get("general", "folder_prefix")+k for k in config.getlist("general", "sample")))))
@@ -27,6 +27,7 @@ def prettyPrintConfig(config, file_dict):
     print(fmt.format("Combine Model/s","{}".format(",".join(k for k in config.getlist("eft", "models")))))
     print(fmt.format("Variables/s","{}".format(",".join(k for k in config.getlist("variables", "treenames")))))
     print(fmt.format("Bins for variable/s","{}".format(",".join(k for k in config.getlist("variables", "bins")))))
+    print(fmt.format("Binsize for variable/s","{}".format(",".join(k for k in config.getlist("variables", "binsize")))))
     print(fmt.format("Ranges for variable/s", "{}".format(",".join(k for k in config.getlist("variables", "xrange")))))
     print("")
     if len(config.getlist("general", "sample")) < len(config.getlist("eft", "operators")):
@@ -563,8 +564,18 @@ def isCut(cutdf, cuts):
         if not eval("cutdf['{}'][0] {} {}".format(var, op, value)):
             return True
 
+def mkLogHisto(v, b, low, up):
 
-def retrieveHisto(paths, tree, var, bins, ranges, luminosity, cuts):
+    #low = 0 is not admiitted
+    if low == 0: low = sys.float_info.min
+    if low < 0:
+        sys.exit("[ERROR] Log scale in a negative range. Check .cfg ...")
+    edges = np.logspace(mt.log(low,10), mt.log(up,10), b+1)
+    htemp = ROOT.TH1F(v + "_temp", v + "_temp", b, edges)
+    return htemp
+
+
+def retrieveHisto(paths, tree, var, bins, binsize, ranges, luminosity, cuts):
     
     chain = ROOT.TChain(tree)
     for path in paths:
@@ -573,24 +584,38 @@ def retrieveHisto(paths, tree, var, bins, ranges, luminosity, cuts):
     if var == "*":
         var = [i.GetName() for i in chain.GetListOfBranches()]
         bins = bins*len(var)
+        binsize = binsize*len(var)
         ranges = ranges*len(var)
 
     if type(var) != list: 
         var = [var]
         bins = [bins]
+        binsize = [binsize]
         ranges = [ranges]
 
     th_dict = dict.fromkeys(var)
-    for v, b, r in zip(var, bins, ranges):
+    for v, b, bs, r in zip(var, bins, binsize, ranges):
 
-        h = ROOT.TH1F(v, v, b, r[0], r[1])
-        print("[INFO] @ Filling {} histo, bins: {}, range: {} ...".format(v, b, r))
+        if bs == "fix":
+            h = ROOT.TH1F(v, v, b, r[0], r[1])
+
+        if bs == "log":
+            h = mkLogHisto(v, b, r[0], r[1])
+
+        elif bs != "fix" and bs !=  "log":
+            sys.exit("[ERROR] Choose binsize between log and fix ... ")
+
+        print("[INFO] @ Filling {} histo, bins: {}, binsize: {}, range: {} ...".format(v, b, bs, r))
 
         for path in paths:
             f = ROOT.TFile(path)
             t = f.Get(tree)
 
-            htemp = ROOT.TH1F(v + "_temp", v + "_temp", b, r[0], r[1])
+            if bs == "fix":
+                htemp = ROOT.TH1F(v + "_temp", v + "_temp", b, r[0], r[1])
+
+            elif bs == "log":
+                htemp = mkLogHisto(v, b, r[0], r[1])
 
             #reading some important infos
             global_numbers             = f.Get ( tree + "_nums")
@@ -633,6 +658,7 @@ def makeHistos(config, file_dict):
 
     vars_ = config.getlist("variables", "treenames")
     bins = [int(i) for i in config.getlist("variables", "bins")]
+    binsize = config.getlist("variables", "binsize")
     ranges = convertCfgLists(config.getlist("variables", "xrange"))
     histo_name = config.getlist("variables", "histonames")
     lumi = float(config.get("general", "lumi"))
@@ -640,8 +666,8 @@ def makeHistos(config, file_dict):
     dummies = []
     if config.has_option("variables", "makeDummy"): dummies = config.getlist("variables", "makeDummy")
 
-    if vars_[0] != "*" and len(vars_) != len(bins) or len(vars_) != len(ranges):
-        sys.exit("[ERROR] var names and bins/xranges do not match. Ignore or take action ...")
+    if vars_[0] != "*" and len(vars_) != len(bins) or len(vars_) != len(ranges) or len(vars_) != len(binsize):
+        sys.exit("[ERROR] var names and bins/binsize/xranges do not match. Ignore or take action ...")
 
     cut = "1==1"
     if config.has_option("cuts", "normalcuts"): cut = makeCut(config)    
@@ -655,9 +681,9 @@ def makeHistos(config, file_dict):
                 base_histos[s][component] = {}
                 print("[INFO] @ ---- Starting filling histos for sample {}, component: {} ---- \
                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, component))
-                for var, bins_, ranges_ in zip(vars_, bins, ranges) :
+                for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
                     nt = (file_dict[s][component][0].split("ntuple_")[1]).split(".root")[0]
-                    base_histos[s][component].update(retrieveHisto(file_dict[s][component], nt, var, bins_, ranges_, lumi, cut))
+                    base_histos[s][component].update(retrieveHisto(file_dict[s][component], nt, var, bins_, binsize_, ranges_, lumi, cut))
                 
         for dummy in dummies:
             print("[INFO] @ ---- Filling dummy histos for sample {}, component: {} ---- \
