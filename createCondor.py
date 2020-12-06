@@ -160,7 +160,7 @@ if __name__ == "__main__":
                 makeT2WFitCondor(v, model, ops, opr, npoints)
                 makeBatchSub(v)
 
-            all_sub_paths.append(os.path.abspath(v))
+                all_sub_paths.append(os.path.abspath(v))
 
     makeSub(sys.argv[1], all_sub_paths)
 
