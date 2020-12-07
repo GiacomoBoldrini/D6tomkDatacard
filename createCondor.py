@@ -83,7 +83,7 @@ def makeT2WFitCondor(path, model, ops, opr, npoints):
     f.write(to_w)
 
     f.write("#-----------------------------------\n")
-    to_w = "combine -M MultiDimFit model.root  --algo=grid --points {}  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --verbose -1".format(path, npoints, ",".join("k_"+op for op in ops), ranges)
+    to_w = "combine -M MultiDimFit model.root  --algo=grid --points {}  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --verbose -1".format(npoints, ",".join("k_"+op for op in ops), ranges)
     to_w += "\n"
     f.write(to_w)
     f.write("cp model.root {}\n".format(path))
@@ -148,11 +148,11 @@ if __name__ == "__main__":
     
     for s in subf:
         subfolder = s.split("/")[-2]
-        prc = subfolder.split(prefix)[-1]
+        prc = subfolder.split(prefix+"_")[-1]
         ops = prc.split(process + "_")[-1]
         ops = ops.split("_")
         models = [ i.split("/")[-2] for i in glob(s + "/*/") ]
-
+        
         for model in models:
             vars_ = glob(s + "/" + model + "/datacards/" + prc + "/*/")
             print("[INFO] Running: {}, model: {}, tot fits: {}".format(s, model, len(vars_)))
