@@ -544,7 +544,7 @@ def retrieveDummy(name, var, bins, ranges):
     th_dict = dict.fromkeys(var)
     for v, b, r in zip(var, bins, ranges):
         print("[INFO] @ Filling {} histo dummy ...".format(v))
-        h = ROOT.TH1F(name + "_" + v, name, b, r[0], r[1])
+        h = ROOT.TH1D(name + "_" + v, name, b, r[0], r[1])
         for i in range(1, b):
             h.SetBinContent(i,0)
 
@@ -571,7 +571,7 @@ def mkLogHisto(v, b, low, up):
     if low < 0:
         sys.exit("[ERROR] Log scale in a negative range. Check .cfg ...")
     edges = np.logspace(mt.log(low,10), mt.log(up,10), b+1)
-    htemp = ROOT.TH1F(v + "_temp", v + "_temp", b, edges)
+    htemp = ROOT.TH1D(v + "_temp", v + "_temp", b, edges)
     return htemp
 
 
@@ -597,7 +597,7 @@ def retrieveHisto(paths, tree, var, bins, binsize, ranges, luminosity, cuts):
     for v, b, bs, r in zip(var, bins, binsize, ranges):
 
         if bs == "fix":
-            h = ROOT.TH1F(v, v, b, r[0], r[1])
+            h = ROOT.TH1D(v, v, b, r[0], r[1])
 
         if bs == "log":
             h = mkLogHisto(v, b, r[0], r[1])
@@ -612,7 +612,7 @@ def retrieveHisto(paths, tree, var, bins, binsize, ranges, luminosity, cuts):
             t = f.Get(tree)
 
             if bs == "fix":
-                htemp = ROOT.TH1F(v + "_temp", v + "_temp", b, r[0], r[1])
+                htemp = ROOT.TH1D(v + "_temp", v + "_temp", b, r[0], r[1])
 
             elif bs == "log":
                 htemp = mkLogHisto(v, b, r[0], r[1])

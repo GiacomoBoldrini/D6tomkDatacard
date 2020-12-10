@@ -133,7 +133,7 @@ if __name__ == "__main__":
     config.read(cfg)
     """
 
-    if len(sys.argv) < 4: sys.exit("[ERROR] Provide folder path, prefix, process name,  after running mkDatacards.py ...")
+    if len(sys.argv) < 4: sys.exit("[ERROR] Provide folder path, prefix, process name, [npoints = 20000] after running mkDatacards.py ...")
 
     subf = glob(sys.argv[1] + "/*/")
     prefix = sys.argv[2]
