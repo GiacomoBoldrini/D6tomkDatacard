@@ -91,6 +91,7 @@ def makePlot(h_dict, model, config, outdir):
         first_var = h_dict[sample].keys()[0]
         structure = h_dict[sample][first_var].keys()
         ops = sample.split("_")[1:]
+        
         cd = {}
 
         for key in user_colors.keys():
@@ -100,7 +101,10 @@ def makePlot(h_dict, model, config, outdir):
                         cd[key + "_" + op] = user_colors[key][j]
 
                 if len(user_colors[key]) < len(ops):
-                    cd[key + "_" + "_".join(op for op in ops)] = user_colors[key][0]
+                    if key + "_" + "_".join(op for op in ops) in structure:
+                        cd[key + "_" + "_".join(op for op in ops)] = user_colors[key][0]
+                    else:
+                        cd[key + "_" + "_".join(op for op in ops[::-1])] = user_colors[key][0]
 
                 if len(user_colors[key]) > len(ops):
                     for j,op in enumerate(ops):
