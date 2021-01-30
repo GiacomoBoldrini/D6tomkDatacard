@@ -7,21 +7,21 @@ import numpy as np
 import stat
 
 opr = {
-    'cW': [-2,2],
+    'cW': [-1,1],
     'cHWB': [-20,20],
-    'cHl3' : [-1,1],
-    'cHq1':[-2,2],
-    'cHq3': [-0.5,0.5],
-    'cll1': [-0.5,0.5],
-    'cHbox': [-10,20],
+    'cHl3' : [-2,2],
+    'cHq1':[-4,4],
+    'cHq3': [-4,4],
+    'cll1': [-2,2],
+    'cHbox': [-20,20],
     'cHDD' : [-20,20], 
-    'cHl1' : [-25,25], 
-    'cHW': [-10,5]  ,    
-    'cqq11': [-1,1]  ,     
-    'cqq1' : [-1,1] ,  
-    'cqq31':  [-1,1] ,   
-    'cqq3':  [-1,1] ,   
-    'cll':   [-70,70]   
+    'cHl1' : [-20,20], 
+    'cHW': [-8,8]  ,    
+    'cqq11': [-2,2]  ,     
+    'cqq1' : [-2,2] ,  
+    'cqq31':  [-2,2] ,   
+    'cqq3':  [-3,3] ,   
+    'cll':   [-5,5]   
 }
 
 def redemensionOpinput(config):
@@ -139,9 +139,11 @@ if __name__ == "__main__":
     prefix = sys.argv[2]
     process = sys.argv[3]
     npoints = 20000
+    models = ["EFTNeg"]
     if len(sys.argv) > 4:
         npoints = sys.argv[4]
-
+    if len(sys.argv) > 5:
+        models = sys.argv[5].split(",")
     all_sub_paths = []
 
     print(". . . @ @ @ Retrieving folders @ @ @ . . .")
@@ -151,8 +153,7 @@ if __name__ == "__main__":
         prc = subfolder.split(prefix+"_")[-1]
         ops = prc.split(process + "_")[-1]
         ops = ops.split("_")
-        models = [ i.split("/")[-2] for i in glob(s + "/*/") ]
-        
+               
         for model in models:
             vars_ = glob(s + "/" + model + "/datacards/" + prc + "/*/")
             print("[INFO] Running: {}, model: {}, tot fits: {}".format(s, model, len(vars_)))
