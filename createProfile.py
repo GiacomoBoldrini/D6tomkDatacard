@@ -48,6 +48,8 @@ if __name__ == "__main__":
 
         for model in models:
             os.system("cp -r " + subf[0] + "/{} ".format(model) +  out + "/" + prefix + "_" + process + "_" + op_)
+            proc_op = glob(out + "/" + prefix + "_" + process + "_" + op_ + "/" +  model + "/datacards/*")[0]
+            os.system("mv " + proc_op + " " + out + "/" + prefix + "_" + process + "_" + op_ + "/" +  model + "/datacards/" + process + "_" + op_)
 
         
 
