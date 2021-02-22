@@ -50,7 +50,7 @@ def createOpRange(config):
         or_ = config.getlist("eft", "fitranges")
         return dict( (i.split(":")[0], [ float(i.split(":")[1]) , float(i.split(":")[2]) ] ) for i in or_ )
 
-def makeT2WFitCondor(path, model, ops, opr, npoints):
+def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI):
     path = os.path.abspath(path)
 
     modeltot2w = {
@@ -83,7 +83,7 @@ def makeT2WFitCondor(path, model, ops, opr, npoints):
     f.write(to_w)
 
     f.write("#-----------------------------------\n")
-    to_w = "combine -M MultiDimFit model.root  --algo=grid --points {}  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --verbose -1".format(npoints, ",".join("k_"+op for op in ops), ranges)
+    to_w = "combine -M MultiDimFit model.root  --algo=grid --points {}  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --floatOtherPOI={} --verbose -1".format(npoints, ",".join("k_"+op for op in ops), ranges, floatOtherPOI)
     to_w += "\n"
     f.write(to_w)
     f.write("cp model.root {}\n".format(path))
@@ -94,7 +94,7 @@ def makeT2WFitCondor(path, model, ops, opr, npoints):
     st = os.stat(path + "/submit.sh")
     os.chmod(path + "/submit.sh", st.st_mode | stat.S_IEXEC)
 
-def makeBatchSub(path):
+def makeBatchSub(path, flavour):
     path = os.path.abspath(path)
     f = open(path + "/submit.sub", 'w')
     f.write("executable = {}/submit.sh\n".format(path))
@@ -102,7 +102,7 @@ def makeBatchSub(path):
     f.write("error      = {}/submit.err\n".format(path))
     f.write("log        = {}/submit.log\n".format(path))
     f.write("queue 1\n")
-    f.write("+JobFlavour = 'microcentury'\n")
+    f.write('+JobFlavour = "{}"\n'.format(flavour))
     f.close()
 
 def makeSub(path_, all_paths):
@@ -118,32 +118,23 @@ def makeSub(path_, all_paths):
 
 if __name__ == "__main__":
 
-    """
-    if len(sys.argv) < 5: sys.exit("[ERROR] Provide folder path, prefix, process name, config file, after running mkDatacards.py ...")
-
-    subf = glob(sys.argv[1] + "/*/")
-    prefix = sys.argv[2]
-    process = sys.argv[3]
-    cfg = sys.argv[4]
-    npoints = 20000
-    if len(sys.argv) > 5:
-        npoints = sys.argv[5]
-
-    config = ConfigParser(converters={'list': lambda x: [str(i.strip()) for i in x.split(',')]})
-    config.read(cfg)
-    """
-
-    if len(sys.argv) < 4: sys.exit("[ERROR] Provide folder path, prefix, process name, [npoints = 20000], [models = EFTNeg] after running mkDatacards.py ...")
+    if len(sys.argv) < 4: sys.exit("[ERROR] Provide folder path, prefix, process name, [npoints = 20000], [models = EFTNeg], [flavour = microcentury], [floatOtherPOI = 0] after running mkDatacards.py ...")
 
     subf = glob(sys.argv[1] + "/*/")
     prefix = sys.argv[2]
     process = sys.argv[3]
     npoints = 20000
     models = ["EFTNeg"]
+    flavour = "microcentury"
+    floatOtherPOI = 0
     if len(sys.argv) > 4:
         npoints = sys.argv[4]
     if len(sys.argv) > 5:
         models = sys.argv[5].split(",")
+    if len(sys.argv) > 6:
+        flavour = sys.argv[6]
+    if len(sys.argv) > 7:
+        floatOtherPOI = sys.argv[7]
     all_sub_paths = []
 
     print(". . . @ @ @ Retrieving folders @ @ @ . . .")
@@ -158,8 +149,8 @@ if __name__ == "__main__":
             vars_ = glob(s + "/" + model + "/datacards/" + prc + "/*/")
             print("[INFO] Running: {}, model: {}, tot fits: {}".format(s, model, len(vars_)))
             for v in vars_:
-                makeT2WFitCondor(v, model, ops, opr, npoints)
-                makeBatchSub(v)
+                makeT2WFitCondor(v, model, ops, opr, npoints, floatOtherPOI)
+                makeBatchSub(v, flavour)
 
                 all_sub_paths.append(os.path.abspath(v))
 
