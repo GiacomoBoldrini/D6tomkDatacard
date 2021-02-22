@@ -117,7 +117,7 @@ def makeExecRunc(process, config, outdir, opr):
     for var in variables:
         f.write("#-----------------------------------\n")
         f.write("cd datacards/{}/{}\n".format(process, var))
-        to_w = "combine -M MultiDimFit model.root  --algo=grid --points 30000  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --verbose -1".format(",".join("k_"+op for op in ops), ranges)
+        to_w = "combine -M MultiDimFit model.root  --algo=grid --points 10000  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --verbose -1".format(",".join("k_"+op for op in ops), ranges)
         to_w += "\n"
         f.write(to_w)
         f.write("cd ../../..\n\n\n")
