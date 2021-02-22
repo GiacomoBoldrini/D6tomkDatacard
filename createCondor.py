@@ -50,7 +50,7 @@ def createOpRange(config):
         or_ = config.getlist("eft", "fitranges")
         return dict( (i.split(":")[0], [ float(i.split(":")[1]) , float(i.split(":")[2]) ] ) for i in or_ )
 
-def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI):
+def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI, pois):
     path = os.path.abspath(path)
 
     modeltot2w = {
@@ -75,9 +75,15 @@ def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI):
     f.write("eval `scram run -sh`\ncd -\n")
     f.write("cp -r {} ./\n".format(path))
 
-    to_w = "text2workspace.py  {}/datacard.txt  -P HiggsAnalysis.AnalyticAnomalousCoupling.AnomalousCoupling{}:analiticAnomalousCoupling{}  -o   model.root \
-    --X-allow-no-signal --PO eftOperators={}".format(path, mod, mod, ",".join(op for op in ops))        
-    if "alt" in model: to_w += " --PO  eftAlternative"
+    if pois == None:
+        to_w = "text2workspace.py  {}/datacard.txt  -P HiggsAnalysis.AnalyticAnomalousCoupling.AnomalousCoupling{}:analiticAnomalousCoupling{}  -o   model.root \
+        --X-allow-no-signal --PO eftOperators={}".format(path, mod, mod, ",".join(op for op in ops))        
+        if "alt" in model: to_w += " --PO  eftAlternative"
+    else:
+        to_w = "text2workspace.py  {}/datacard.txt  -P HiggsAnalysis.AnalyticAnomalousCoupling.AnomalousCoupling{}:analiticAnomalousCoupling{}  -o   model.root \
+        --X-allow-no-signal --PO eftOperators={}".format(path, mod, mod, ",".join(op for op in pois))        
+        if "alt" in model: to_w += " --PO  eftAlternative"
+
     
     to_w += "\n"
     f.write(to_w)
@@ -118,7 +124,7 @@ def makeSub(path_, all_paths):
 
 if __name__ == "__main__":
 
-    if len(sys.argv) < 4: sys.exit("[ERROR] Provide folder path, prefix, process name, [npoints = 20000], [models = EFTNeg], [flavour = microcentury], [floatOtherPOI = 0] after running mkDatacards.py ...")
+    if len(sys.argv) < 4: sys.exit("[ERROR] Provide folder path, prefix, process name, [npoints = 20000], [models = EFTNeg], [flavour = microcentury], [floatOtherPOI = 0], [ pois = Default ] after running mkDatacards.py ...")
 
     subf = glob(sys.argv[1] + "/*/")
     prefix = sys.argv[2]
@@ -127,6 +133,7 @@ if __name__ == "__main__":
     models = ["EFTNeg"]
     flavour = "microcentury"
     floatOtherPOI = 0
+    pois = None
     if len(sys.argv) > 4:
         npoints = sys.argv[4]
     if len(sys.argv) > 5:
@@ -135,6 +142,8 @@ if __name__ == "__main__":
         flavour = sys.argv[6]
     if len(sys.argv) > 7:
         floatOtherPOI = sys.argv[7]
+    if len(sys.argv) > 8:
+        pois = sys.argv[8].split(",")
     all_sub_paths = []
 
     print(". . . @ @ @ Retrieving folders @ @ @ . . .")
@@ -149,7 +158,7 @@ if __name__ == "__main__":
             vars_ = glob(s + "/" + model + "/datacards/" + prc + "/*/")
             print("[INFO] Running: {}, model: {}, tot fits: {}".format(s, model, len(vars_)))
             for v in vars_:
-                makeT2WFitCondor(v, model, ops, opr, npoints, floatOtherPOI)
+                makeT2WFitCondor(v, model, ops, opr, npoints, floatOtherPOI, pois)
                 makeBatchSub(v, flavour)
 
                 all_sub_paths.append(os.path.abspath(v))
