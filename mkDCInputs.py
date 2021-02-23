@@ -275,10 +275,10 @@ def histosToModel(histo_dict, model_type = "EFT"):
                 sm = [i for i in components if "SM" in i]
                 data = [i for i in components if "DATA" in i]
 
-                #Checks that everything is right
-                if len(linear) != 1:
-                    if len(mixed) != mt.factorial(len(linear)) / (mt.factorial(2) * mt.factorial(len(linear)-2)) or len(sm) != 1: 
-                        sys.exit("[ERROR] errors in the combinatorial, Probably you are missing some interference samples for the op you specified ...")
+                #Checks that everything is right -> this suppose that interference exists ALWAYS (thay's not always true)
+                #if len(linear) != 1:
+                #    if len(mixed) != mt.factorial(len(linear)) / (mt.factorial(2) * mt.factorial(len(linear)-2)) or len(sm) != 1: 
+                #        sys.exit("[ERROR] errors in the combinatorial, Probably you are missing some interference samples for the op you specified ...")
 
                 eft_neg_dict[sample][var][sm[0]] = histo_dict[sample][var][sm[0]]
                 if len(data) != 0:
@@ -332,9 +332,9 @@ def histosToModel(histo_dict, model_type = "EFT"):
                 data = [i for i in components if "DATA" in i]
 
                 #Checks that everything is right
-                if len(linear) != 1:
-                    if len(mixed) != mt.factorial(len(linear)) / (mt.factorial(2) * mt.factorial(len(linear)-2)) or len(sm) != 1: 
-                        sys.exit("[ERROR] errors in the combinatorial, Probably you are missing some interference samples for the op you specified ...")
+                #if len(linear) != 1:
+                #    if len(mixed) != mt.factorial(len(linear)) / (mt.factorial(2) * mt.factorial(len(linear)-2)) or len(sm) != 1: 
+                #        sys.exit("[ERROR] errors in the combinatorial, Probably you are missing some interference samples for the op you specified ...")
 
                 eft_negalt_dict[sample][var][sm[0]] = histo_dict[sample][var][sm[0]]
 
@@ -501,9 +501,13 @@ def retireve_samples(config):
                     files = files2
                     c = c2
                     del file_dict[sh]["IN_{}_{}".format(c1[0], c1[1])]
-                else:
+                else: #interference does not exist (can happen!) delete the fields so makeHistos do not see this
+                    print("[WARNING] Missing interference sample for pair {},{}".format(c1[0], c1[1]))
+                    del file_dict[sh]["IN_{}_{}".format(c1[0], c1[1])]
+                    del file_dict[sh]["IN_{}_{}".format(c2[0], c2[1])]
                     continue
-
+                
+                #don't remember what this check is for...
                 for file_ in files:
                     if "IN" in file_: file_dict[sh]["IN_{}_{}".format(c[0], c[1])].append(file_)
 
