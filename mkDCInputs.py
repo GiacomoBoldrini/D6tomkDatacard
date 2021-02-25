@@ -243,12 +243,33 @@ def cleanNames(model_dict):
     for sample in model_dict.keys():
         for var in model_dict[sample].keys():
             tb_clear = model_dict[sample][var].keys()
-            for c in model_dict[sample][var]:
+            for c in model_dict[sample][var].keys():
                 if c in tb_clear: #after popping we will modify the keys 
                     name = get_model_syntax(c)
                     model_dict[sample][var][name] = model_dict[sample][var].pop(c)
                 else:
                     continue
+
+    #sanity check
+    #retireve ops
+    ops = [] # single operators
+    blocks = [] # which will go in the datacard
+    for sample in model_dict.keys():
+        for var in model_dict[sample].keys():
+            for c in model_dict[sample][var].keys():
+                if c not in blocks: blocks.append(c)
+                if "quad" in c: #quad is the only component common to every model and should be present for each op
+                    op = c.split("_")[-1] #last is the op (don't worry about two ops)
+                    if op not in ops: ops.append(op)
+
+    op_pairs = list(combinations(ops, 2)) #for interferences
+
+    #checks for components after cleaning names:
+    if len([j for j in blocks if "quad" in j and "mixed" not in j and "sm" not in j]) != len(ops): sys.exit("[ERROR] Missing pure quadratic components...")
+    if len([j for j in blocks if "lin" in j and "mixed" not in j]) != len(ops): print("[WARNING] Missing linear components, this can be ignored when building models other than EFT...")
+    if "sm" not in blocks: sys.exit("[ERROR] no SM sample...")
+    if len([j for j in blocks if "mixed" in j]) != len(op_pairs): print("[WARNING] Missing interference samples for some operators. This may be ignored if you are sure they do not exist")
+
     return model_dict
                 
 
@@ -736,6 +757,8 @@ if __name__ == "__main__":
                        required = False)
 
     args = parser.parse_args()
+
+    ROOT.gROOT.SetBatch(1)
 
     config = ConfigParser(converters={'list': lambda x: [str(i.strip()) for i in x.split(',')]})
     config.read(args.cfg)

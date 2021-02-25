@@ -248,46 +248,46 @@ def makeVariables(h_dict, model, config, outdir):
         vars_ = h_dict[sample].keys()
 
         bl = len(vars_)
-        if not all(len(lst) == bl for lst in [xaxis_, name_, range_, fold_]):
+        #if not all(len(lst) == bl for lst in [xaxis_, name_, range_, fold_]):
 
-            if xaxis_[0] == "auto": xaxis_ = dict((i,j) for i,j in zip(vars_, vars_))
-            elif len(xaxis_) == len(vars_): 
-                tn = config.getlist("variables", "treenames")
-                xaxis_ = dict((i,j) for i,j in zip(tn, xaxis_))
-            else:
-                sys.exit("[ERROR] xaxis name do not match variables, check inputs in cfg ...")
+        if xaxis_[0] == "auto": xaxis_ = dict((i,j) for i,j in zip(vars_, vars_))
+        elif len(xaxis_) == len(vars_): 
+            tn = config.getlist("variables", "treenames")
+            xaxis_ = dict((i,j) for i,j in zip(tn, xaxis_))
+        else:
+            sys.exit("[ERROR] xaxis name do not match variables, check inputs in cfg ...")
 
 
-            if name_[0] == "auto": name_ = dict((i,j) for i,j in zip(vars_, vars_)) 
-            elif len(name_) == len(vars_): 
-                tn = config.getlist("variables", "treenames")
-                name_ = dict((i,j) for i,j in zip(tn, name_))
-            else:
-                sys.exit("[ERROR] names do not match variables, check inputs in cfg ...")
-            
+        if name_[0] == "auto": name_ = dict((i,j) for i,j in zip(vars_, vars_)) 
+        elif len(name_) == len(vars_): 
+            tn = config.getlist("variables", "treenames")
+            name_ = dict((i,j) for i,j in zip(tn, name_))
+        else:
+            sys.exit("[ERROR] names do not match variables, check inputs in cfg ...")
+        
 
-            if fold_[0] == "auto": fold_ = dict((i,0) for i in vars_)
-            elif len(fold_) == len(vars_): 
-                tn = config.getlist("variables", "treenames")
-                fold_ = dict((i,j) for i,j in zip(tn, fold_))
-            else:
-                sys.exit("[ERROR] folds do not match variables, check inputs in cfg ...")
+        if fold_[0] == "auto": fold_ = dict((i,0) for i in vars_)
+        elif len(fold_) == len(vars_): 
+            tn = config.getlist("variables", "treenames")
+            fold_ = dict((i,j) for i,j in zip(tn, fold_))
+        else:
+            sys.exit("[ERROR] folds do not match variables, check inputs in cfg ...")
 
-            if range_[0] == "auto":
-                tn = config.getlist("variables", "treenames")
-                range_ = dict.fromkeys(tn)
-                bins = [int(i) for i in config.getlist("variables", "bins")]
-                ranges = [i[1:-1].split(":") for i in config.getlist("variables", "xrange")]
-                ranges = [list(map(float, sublist)) for sublist in ranges]
+        if range_[0] == "auto":
+            tn = config.getlist("variables", "treenames")
+            range_ = dict.fromkeys(tn)
+            bins = [int(i) for i in config.getlist("variables", "bins")]
+            ranges = [i[1:-1].split(":") for i in config.getlist("variables", "xrange")]
+            ranges = [list(map(float, sublist)) for sublist in ranges]
 
-                for k,b,r in zip(range_.keys(), bins, ranges):
-                    range_[k] = {'bins': b, 'range': [r[0], r[1]]}
+            for k,b,r in zip(range_.keys(), bins, ranges):
+                range_[k] = {'bins': b, 'range': [r[0], r[1]]}
 
-            elif len(range_) == len(vars_): 
-                tn = config.getlist("variables", "treenames")
-                range_ = dict((i,j) for i,j in zip(tn, range_))  
-            else: 
-                sys.exit("[ERROR] ranges do not match variables, check inputs in cfg ...")
+        elif len(range_) == len(vars_): 
+            tn = config.getlist("variables", "treenames")
+            range_ = dict((i,j) for i,j in zip(tn, range_))  
+        else: 
+            sys.exit("[ERROR] ranges do not match variables, check inputs in cfg ...")
 
 
         file_name = outdir + "/variables_" + sample + "_" + model + ".py"
