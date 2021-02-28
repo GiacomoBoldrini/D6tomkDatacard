@@ -271,12 +271,73 @@ def cleanNames(model_dict):
     if len([j for j in blocks if "mixed" in j]) != len(op_pairs): print("[WARNING] Missing interference samples for some operators. This may be ignored if you are sure they do not exist")
 
     return model_dict
-                
 
-def histosToModel(histo_dict, model_type = "EFT"):
+
+def addSMHistogramAsDefault(model_dict, model_type):
+    """
+        It may happen that sometime an interferencee term does not exist for a process.
+        But the combine model expects a bin. Workaround -> the  interference is 0 so if the model
+        expects Sm + Li1 + Li2 + Qu1 + Qu2 + INT we give him SM + Li1 + Li2 + Qu1 + Qu2
+    """
+
+    if model_type == "EFT":
+        #there is no way to assume k = 0 for the EFT, each component is independent of sm
+        return model_dict
+
+    ops = [] # single operators
+    for sample in model_dict.keys():
+        for var in model_dict[sample].keys():
+            for c in model_dict[sample][var].keys():
+                if "quad" in c: #quad is the only component common to every model and should be present for each op
+                    op = c.split("_")[-1] #last is the op (don't worry about two ops)
+                    if op not in ops: ops.append(op)
+
+    op_pairs = list(combinations(ops, 2)) #for interferences
+
+    sm_lin_quad = ["sm_lin_quad_" + i for i in ops] #common to all models
+    mixed_EFTNeg = "sm_lin_quad_mixed_"
+    mixed_EFTNegalt = "quad_mixed_"
+
+    for sample in model_dict.keys():
+        for var in model_dict[sample].keys():
+            components = model_dict[sample][var].keys()
+            h_sm = deepcopy(model_dict[sample][var]["sm"])
+            to_be_filled = list(set(sm_lin_quad).difference(components))
+            for i in to_be_filled:
+                print("[INFO] addSMHistogramAsDefault: var {} creating {}".format( var , i))
+                model_dict[sample][var][i] = h_sm
+
+            if model_type == "EFTNeg":
+                for op_p in op_pairs:
+                    if not mixed_EFTNeg + op_p[0] + "_" + op_p[1] in components and not mixed_EFTNeg + op_p[1] + "_" + op_p[0] in components:
+                        print("[INFO] addSMHistogramAsDefault: var {} creating {}".format(var , mixed_EFTNeg + op_p[0] + "_" + op_p[1]))
+                        h_int = deepcopy(model_dict[sample][var]["sm"])
+                        #lin and quad should exist for both operators
+                        h_int.Add(model_dict[sample][var]["sm_lin_quad_" + op_p[0]])
+                        h_int.Add(model_dict[sample][var]["sm_lin_quad_" + op_p[1]])
+                        h_int.Add(model_dict[sample][var]["sm"], -1)
+
+                        model_dict[sample][var]["sm_lin_quad_mixed_" + op_p[0] + "_" + op_p[1]] = h_int
+
+            if model_type == "EFTNeg-alt":
+                for op_p in op_pairs:
+                    if not mixed_EFTNegalt + op_p[0] + "_" + op_p[1] in components and not mixed_EFTNegalt + op_p[1] + "_" + op_p[0] in components:
+                        print("[INFO] addSMHistogramAsDefault: var {} creating {} ".format( var, mixed_EFTNegalt + op_p[0] + "_" + op_p[1]))
+                        h_int = deepcopy(model_dict[sample][var]["sm"])
+                        #quad should exist for both operators
+                        h_int.Add(model_dict[sample][var]["quad_" + op_p[0]])
+                        h_int.Add(model_dict[sample][var]["quad_" + op_p[1]])
+
+                        model_dict[sample][var]["quad_mixed_" + op_p[0] + "_" + op_p[1]] = h_int
+
+    return model_dict
+                        
+
+
+def histosToModel(histo_dict, model_type = "EFT", fillMissing = True):
     if model_type == "EFT":
         print("[INFO]: Converting base model to EFT...")
-        return cleanNames(deepcopy(histo_dict))
+        return  cleanNames(deepcopy(histo_dict))
 
     if model_type == "EFTNeg":
 
@@ -329,7 +390,10 @@ def histosToModel(histo_dict, model_type = "EFT"):
                     new_sm.Add(histo_dict[sample][var]["IN_{}_{}".format(o_c[0], o_c[1])])
                     eft_neg_dict[sample][var]["SM_LI_QU_INT_{}_{}".format(o_c[0], o_c[1])] = new_sm
         
-        return cleanNames(deepcopy(eft_neg_dict))
+        the_cleaned_dict = cleanNames(deepcopy(eft_neg_dict))
+        if fillMissing: the_cleaned_dict = addSMHistogramAsDefault(deepcopy(the_cleaned_dict), model_type)
+        return the_cleaned_dict
+        #return cleanNames(deepcopy(eft_neg_dict))
 
 
     if model_type == "EFTNeg-alt":
@@ -384,7 +448,10 @@ def histosToModel(histo_dict, model_type = "EFT"):
                     new_sm.Add(histo_dict[sample][var]["IN_{}_{}".format(o_c[0], o_c[1])])
                     eft_negalt_dict[sample][var]["QU_INT_{}_{}".format(o_c[0], o_c[1])] = new_sm
 
-        return cleanNames(deepcopy(eft_negalt_dict))
+        the_cleaned_dict = cleanNames(deepcopy(eft_negalt_dict))
+        if fillMissing: the_cleaned_dict = addSMHistogramAsDefault(deepcopy(the_cleaned_dict), model_type)
+        return the_cleaned_dict
+        #return cleanNames(deepcopy(eft_negalt_dict))
 
 
 def setNamesToKeys(h_dict):
@@ -767,6 +834,8 @@ if __name__ == "__main__":
     outprefix = config.get("general", "folder_prefix")
     outfile = config.get("general", "outfile")
     models = config.getlist("eft", "models")
+    fillMissing_ = 0
+    if config.has_option("eft", "fillMissing"): fillMissing_ = config.get("eft", "fillMissing")
 
     opr = createOpRange(config)
 
@@ -793,7 +862,7 @@ if __name__ == "__main__":
             mkdir(mod_path)
             mkdir(mod_path + "/rootFile/")
 
-            model_dict = histosToModel(dict((proc,base_histo[proc]) for proc in base_histo.keys() if proc == process), model_type=mod)
+            model_dict = histosToModel(dict((proc,base_histo[proc]) for proc in base_histo.keys() if proc == process), model_type=mod, fillMissing = fillMissing_)
             write(model_dict, outname = mod_path + "/rootFile/" + outfile)
 
             makeExecRunt(mod, process, config, mod_path)
