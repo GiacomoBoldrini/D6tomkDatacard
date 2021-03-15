@@ -759,7 +759,7 @@ def makeHistos(config, file_dict):
     if config.has_option("variables", "makeDummy"): dummies = config.getlist("variables", "makeDummy")
 
     if vars_[0] != "*" and len(vars_) != len(bins) or len(vars_) != len(ranges) or len(vars_) != len(binsize):
-        sys.exit("[ERROR] var names and bins/binsize/xranges do not match. Ignore or take action ...")
+        sys.exit("[ERROR] var names ({}) and bins({})/binsize({})/xranges({}) do not match. Ignore or take action ...".format(len(vars_),len(bins), len(binsize),len(ranges)))
 
     cut = "1==1"
     if config.has_option("cuts", "normalcuts"): cut = makeCut(config)    
