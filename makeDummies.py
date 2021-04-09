@@ -15,7 +15,10 @@ def groupSinglets(comp_name):
         }
 
     type_ = comp_name.split("_c")[0]
-    newName = d[type_]
+    if type_ in d:
+        newName = d[type_]
+    else:
+        return comp_name
 
     if type_ != "sm" and type_!= "DATA": #need to account for operators here
         ops = comp_name.split(type_ + "_")[1]
@@ -34,11 +37,14 @@ def isBSM(sample):
     else:
         return False
 
-def makeStructure(h_dict, model, outdir):
+def makeStructure(h_dict, model, outdir, isMkDC = True):
 
     for sample in h_dict:
-        first_var = h_dict[sample].keys()[0]
-        structure = h_dict[sample][first_var].keys()
+        if isMkDC:
+            first_var = h_dict[sample].keys()[0]
+            structure = h_dict[sample][first_var].keys()
+        else:
+            structure = h_dict[sample]
 
         file_name = outdir + "/structure_" + sample + "_" + model + ".py"
         f = open(file_name, 'w')
@@ -62,7 +68,9 @@ def makeStructure(h_dict, model, outdir):
 
         f.close()
 
-def makePlot(h_dict, model, config, outdir):
+# THIS FUNCTION IS TERRIBLE, HOPEFULLY SOMEONE STRONG OF HEART WILL FIX IT
+# anyway we do not need the Latinos plot card redineed in order to generate the datacards
+def makePlot(h_dict, model, config, outdir, isMkDC = True):
 
     colors = config.getlist("d_plot", "colors")
     c_types = [i.split(":")[0] for i in colors]
@@ -88,8 +96,12 @@ def makePlot(h_dict, model, config, outdir):
     if config.has_option("d_plot", "g_colors"): g_colors = [int(col) for col in config.getlist("d_plot", "g_colors")]
 
     for sample in h_dict:
-        first_var = h_dict[sample].keys()[0]
-        structure = h_dict[sample][first_var].keys()
+        if isMkDC:
+            first_var = h_dict[sample].keys()[0]
+            structure = h_dict[sample][first_var].keys()
+        else:
+            structure = h_dict[sample]
+
         ops = sample.split("_")[1:]
         
         cd = {}
@@ -156,6 +168,9 @@ def makePlot(h_dict, model, config, outdir):
 
                         if key in isSignal.keys(): sig_val = isSignal[key]
                         else: sig_val = 2
+
+                        # thisif else are ridicolous now 
+                        if key not in cd.keys(): cd[key] = 1
 
                         group_these[key]['nameHR'] = "'{}'".format(leg_name)
                         group_these[key]['isSignal'] = sig_val
@@ -312,11 +327,14 @@ def makeVariables(h_dict, model, config, outdir):
         f.close()
 
 
-def makeSamples(h_dict, model, config, outdir):
+def makeSamples(h_dict, model, config, outdir, isMkDC = True):
 
     for sample in h_dict:
-        first_var = h_dict[sample].keys()[0]
-        structure = h_dict[sample][first_var].keys()
+        if isMkDC:
+            first_var = h_dict[sample].keys()[0]
+            structure = h_dict[sample][first_var].keys()
+        else:
+            structure = h_dict[sample]
 
         file_name = outdir + "/samples_" + sample + "_" + model + ".py"
         f = open(file_name, 'w')
@@ -630,7 +648,7 @@ def makeNuisDict(config, d_name_, name_, type_, samples_, components):
     return n_d
 
 
-def makeNuisances(h_dict, model, config, outdir):
+def makeNuisances(h_dict, model, config, outdir, isMkDC = True):
 
     #THIS PART IS NOT PERFECT
     #CAN WORK IF THE NUISANCE IS ONLY ON SM
@@ -644,14 +662,15 @@ def makeNuisances(h_dict, model, config, outdir):
         
 
     for sample in h_dict:
-
-        components = h_dict[sample][h_dict[sample].keys()[0]].keys()
+        
+        if isMkDC: components = h_dict[sample][h_dict[sample].keys()[0]].keys()
+        else: components = h_dict[sample]
 
         nd = makeNuisDict(config, defname, name, types, samples, components)
 
-
-        if not check_Nuisances(nd, h_dict):
-            sys.exit("[ERROR] Nuisances specified in cfg file are not present in components dict ... Check inputs")
+        if isMkDC:
+            if not check_Nuisances(nd, h_dict):
+                sys.exit("[ERROR] Nuisances specified in cfg file are not present in components dict ... Check inputs")
 
         if config.get("d_nuisances", "propagate") == "True":
             #
