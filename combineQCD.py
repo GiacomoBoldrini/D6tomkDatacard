@@ -135,7 +135,7 @@ if __name__ == "__main__":
                     if not all(i in compMaj for i in compMin):
                         sys.exit("[ERROR] Found different components for {} and {}, check you inputs".format(majorDict[op][model], minorDict[op][model]))
 
-                    finalComponent = compMaj #arbitrary
+                    finalComponent = [i.split("histo_")[1] for i in compMaj]
 
                     #at this point components are  equal so wecycle on either one
                     for comp in compMaj:
@@ -164,7 +164,7 @@ if __name__ == "__main__":
                     compMaj = [i.GetName() for i in dCMaj.GetListOfKeys()]
 
                     finalComponent = [i.split("histo_")[1] for i in compMaj]
-                    finalComponent.append("SM_" + minorProc)
+                    finalComponent.append("QCD_" + minorProc)
 
                     #Just copy the major  dict component
                     for comp in compMaj:
@@ -173,7 +173,9 @@ if __name__ == "__main__":
                     
                     # And append the SM component with a name != from combine model names
                     hSM_bkg = fallBack[model][var]
-                    hSM_bkg.Write("histo_SM_" + minorProc)
+                    #god knows why Write does not overwrite object name...
+                    hSM_bkg.SetName("histo_QCD_" + minorProc)
+                    hSM_bkg.Write("histo_QCD_" + minorProc)
 
 
             print("op: {} {}".format(op, finalComponent))
