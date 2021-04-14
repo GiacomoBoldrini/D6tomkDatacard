@@ -147,9 +147,55 @@ if __name__ == "__main__":
 
                         hMaj.Write(comp)
 
-            # If op is not in the minority dict then we simply compy the EFT components
-            # And will add the SMcomponent fromt he minority dict as a separate component
-            # That will be interpretedasan additional background (the name should not match the combine model "golden names")
+            # May happen that op are sswapped (in 2D ) ssuch as (cHl1, cW) and (cW, cHl1), 
+            # of course the set is sharedd and shapes should be summed
+            elif "_".join(op.split("_")[::-1]) in minorDict.keys():
+                op_min = "_".join(op.split("_")[::-1])
+                op_maj = op
+
+                print(op_min, op_maj)
+
+                if op not in added: added.append(op)
+
+                fMin = ROOT.TFile(minorDict[op_min][model])
+                dMin = fMin.Get(minorProc + "_" + op_min)
+                varMin = [i.GetName() for i in dMin.GetListOfKeys()]
+
+                if not all(i in varMaj for i in varMin):
+                    sys.exit("[ERROR] Found different variables for {} and {},\
+                                 check you inputs".format(majorDict[op_maj][model], minorDict[op_min][model]))
+                
+                finalVars = list(varMaj)
+                # At this point vars are  equal so wecycle on either one
+                for var in varMaj:
+
+                    fOut.mkdir(args.outprocess + "_" + op_maj  + "/" + var + "/")
+                    fOut.cd(args.outprocess + "_" + op_maj  + "/" + var + "/")
+
+                    dCMaj = fMaj.Get(majorProc + "_" + op_maj + "/" + var)
+                    dCMin = fMin.Get(minorProc + "_" + op_min + "/" + var )
+
+                    compMaj = [i.GetName() for i in dCMaj.GetListOfKeys()]
+                    compMin = [i.GetName() for i in dCMin.GetListOfKeys()]
+
+
+                    if not all(i in compMaj for i in compMin):
+                        sys.exit("[ERROR] Found different components for {} and {}, check you inputs".format(majorDict[op_maj][model], minorDict[op_min][model]))
+
+                    finalComponent = [i.split("histo_")[1] for i in compMaj]
+
+                    #at this point components are  equal so wecycle on either one
+                    for comp in compMaj:
+                        hMaj = deepcopy( fMaj.Get(majorProc + "_" + op_maj + "/" + var + "/" + comp) )
+                        hMin = deepcopy( fMin.Get(minorProc + "_" + op_min + "/" + var + "/" + comp) )
+                        # print("@ Component: {}".format(comp))
+                        # print("First Integral: {} Second Integral: {}".format(hMaj.Integral(), hMin.Integral()))
+                        hMaj.Add(hMin)
+                        # print("Summed Integral: {}".format(hMaj.Integral()))
+
+                        # default name is hMaj key coherent with all the directory names
+                        hMaj.Write(comp)
+
             else:
                 if op not in sole: sole.append(op)
                 if not all(i in varMaj for i in fallBack[model].keys()):
@@ -196,5 +242,5 @@ if __name__ == "__main__":
             
             
     print("[INFO] Conclusions ...")
-    print("The following ops are shared and contributions summed: {}".format(added))
-    print("The following ops are not shared. Contributions only from SM as bkg: {}".format(sole))
+    print("The following ops are shared and contributions summed {}: {}".format(len(added), added))
+    print("The following ops are not shared. Contributions only from SM as bkg {}: {}".format(len(sole), sole))
