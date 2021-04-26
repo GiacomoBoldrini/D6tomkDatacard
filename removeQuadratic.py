@@ -14,14 +14,18 @@ if __name__ == "__main__":
     parser.add_argument('--cfg',     dest='cfg',     help='Config file with infos about samples/variables/...', 
                        required = True)
     parser.add_argument('--after_mkD',     dest='after_mkD',     help='if the folder was generated after mkDatacard', required = False, default = "False", action="store_true")
+    parser.add_argument('--d',     dest='dir',     help='Overrides the output folder from the cfg file (for example if you run  combineQCD)', required = False)
+    parser.add_argument('--p',     dest='proc',     help='Overrides the process, otherwise it supposes: prefix_process_operator(s)', required = False)
 
     args = parser.parse_args()
-    
+
     #reading the configuration
     config = ConfigParser(converters={'list': lambda x: [str(i.strip()) for i in x.split(',')]})
     config.read(args.cfg)
 
-    outdir = str(config.get("general", "outfolder"))
+    if args.dir == None: outdir = str(config.get("general", "outfolder"))
+    else: outdir = args.dir
+
     outprefix = str(config.get("general", "folder_prefix"))
     outfile = str(config.get("general", "outfile"))
     models = config.getlist("eft", "models")
@@ -35,12 +39,16 @@ if __name__ == "__main__":
     for s in subf:
         
         #retrieve process, ops from subfolder name
-        fol_name = s.split("/")[-2]
+        fol_name = s.split("/")[-2] # -1 is the /
         process = fol_name.split(outprefix)[1]
-        process = process.strip(" ")
+        process = process.strip(" ") # this is process + op
 
-        ops = process.split("_")[1:]
-        proc = process.split("_")[0]
+        if args.proc == None:
+            ops = process.split("_")[1:]
+            proc = process.split("_")[0]
+        else:
+            proc = args.proc 
+            ops = process.split(proc + "_")[1].split("_")
 
         print(". . . @ @ @ Running in {} @ @ @ . . .".format(s))
         print("[INFO] Models: {}".format(" ".join(m for m in models)))
@@ -62,7 +70,7 @@ if __name__ == "__main__":
                 
                 #retrieve TDirectory that stores the histo for a specific var
                 d = f.Get(str(process + "/" + var))
-                #get the histo names histo_ + proc + operatorss involved
+                #get the histo names histo_ + proc + operators involved
                 histos = [i.GetName() for i in d.GetListOfKeys()]
 
                 #defining the components we want to put at zero
