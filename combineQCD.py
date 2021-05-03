@@ -43,6 +43,7 @@ if __name__ == "__main__":
     parser.add_argument('--prefix_qcd',     dest='prefix_qcd',     help='Prefix of QCD folder including channel name separated by _ eg to_Latinos_OSWWQCD', required = False, default="to_Latinos")
     parser.add_argument('--models',     dest='models',     help='models to be extracted', required = False, default = "EFT,EFTNeg,EFTNeg-alt")
     parser.add_argument('--outfolder',     dest='outfolder',     help='outfolder name', required = False, default="Combined_EWK_QCD")
+    parser.add_argument('--qcdAsbkg',     dest='qcdAsbkg',     help='Always add the SM QCD shape as an additional bkg. No QCD dependence on EFT. Default False', default=False, action="store_true")
 
     args = parser.parse_args()
 
@@ -96,6 +97,7 @@ if __name__ == "__main__":
     for op in majorDict.keys():
         mkdir(args.outfolder + "/to_Latinos_" + args.outprocess + "_" + op )
         for model in models:
+            
             outPath = args.outfolder + "/to_Latinos_" + args.outprocess + "_" + op + "/" + model
             mkdir( outPath)
             mkdir(outPath + "/rootFile" )
@@ -107,100 +109,130 @@ if __name__ == "__main__":
             dMaj = fMaj.Get(majorProc + "_" + op)
             varMaj = [i.GetName() for i in dMaj.GetListOfKeys()]
 
-            if op in minorDict.keys():
+            if not args.qcdAsbkg:
 
-                if op not in added: added.append(op)
+                if op in minorDict.keys():
 
-                fMin = ROOT.TFile(minorDict[op][model])
-                dMin = fMin.Get(minorProc + "_" + op)
-                varMin = [i.GetName() for i in dMin.GetListOfKeys()]
+                    if op not in added: added.append(op)
 
-                if not all(i in varMaj for i in varMin):
-                    sys.exit("[ERROR] Found different variables for {} and {},\
-                                 check you inputs".format(majorDict[op][model], minorDict[op][model]))
-                
-                finalVars = list(varMaj)
-                # At this point vars are  equal so wecycle on either one
-                for var in varMaj:
+                    fMin = ROOT.TFile(minorDict[op][model])
+                    dMin = fMin.Get(minorProc + "_" + op)
+                    varMin = [i.GetName() for i in dMin.GetListOfKeys()]
 
-                    fOut.mkdir(args.outprocess + "_" + op  + "/" + var + "/")
-                    fOut.cd(args.outprocess + "_" + op  + "/" + var + "/")
+                    if not all(i in varMaj for i in varMin):
+                        sys.exit("[ERROR] Found different variables for {} and {},\
+                                    check you inputs".format(majorDict[op][model], minorDict[op][model]))
+                    
+                    finalVars = list(varMaj)
+                    # At this point vars are  equal so wecycle on either one
+                    for var in varMaj:
 
-                    dCMaj = fMaj.Get(majorProc + "_" + op + "/" + var)
-                    dCMin = fMin.Get(minorProc + "_" + op + "/" + var )
+                        fOut.mkdir(args.outprocess + "_" + op  + "/" + var + "/")
+                        fOut.cd(args.outprocess + "_" + op  + "/" + var + "/")
 
-                    compMaj = [i.GetName() for i in dCMaj.GetListOfKeys()]
-                    compMin = [i.GetName() for i in dCMin.GetListOfKeys()]
+                        dCMaj = fMaj.Get(majorProc + "_" + op + "/" + var)
+                        dCMin = fMin.Get(minorProc + "_" + op + "/" + var )
 
-                    if not all(i in compMaj for i in compMin):
-                        sys.exit("[ERROR] Found different components for {} and {}, check you inputs".format(majorDict[op][model], minorDict[op][model]))
+                        compMaj = [i.GetName() for i in dCMaj.GetListOfKeys()]
+                        compMin = [i.GetName() for i in dCMin.GetListOfKeys()]
 
-                    finalComponent = [i.split("histo_")[1] for i in compMaj]
+                        if not all(i in compMaj for i in compMin):
+                            sys.exit("[ERROR] Found different components for {} and {}, check you inputs".format(majorDict[op][model], minorDict[op][model]))
 
-                    #at this point components are  equal so wecycle on either one
-                    for comp in compMaj:
-                        hMaj = deepcopy( fMaj.Get(majorProc + "_" + op + "/" + var + "/" + comp) )
-                        hMin = deepcopy( fMin.Get(minorProc + "_" + op + "/" + var + "/" + comp) )
-                        #print("First Integral: {} Second Integral: {}".format(hMaj.Integral(), hMin.Integral()))
-                        hMaj.Add(hMin)
-                        #print("Summed Integral: {}".format(hMaj.Integral()))
+                        finalComponent = [i.split("histo_")[1] for i in compMaj]
 
-                        hMaj.Write(comp)
+                        #at this point components are  equal so wecycle on either one
+                        for comp in compMaj:
+                            hMaj = deepcopy( fMaj.Get(majorProc + "_" + op + "/" + var + "/" + comp) )
+                            hMin = deepcopy( fMin.Get(minorProc + "_" + op + "/" + var + "/" + comp) )
+                            #print("First Integral: {} Second Integral: {}".format(hMaj.Integral(), hMin.Integral()))
+                            hMaj.Add(hMin)
+                            #print("Summed Integral: {}".format(hMaj.Integral()))
 
-            # May happen that op are sswapped (in 2D ) ssuch as (cHl1, cW) and (cW, cHl1), 
-            # of course the set is sharedd and shapes should be summed
-            elif "_".join(op.split("_")[::-1]) in minorDict.keys():
-                op_min = "_".join(op.split("_")[::-1])
-                op_maj = op
+                            hMaj.Write(comp)
 
-                print(op_min, op_maj)
+                # May happen that op are sswapped (in 2D ) ssuch as (cHl1, cW) and (cW, cHl1), 
+                # of course the set is sharedd and shapes should be summed
+                elif "_".join(op.split("_")[::-1]) in minorDict.keys():
+                    op_min = "_".join(op.split("_")[::-1])
+                    op_maj = op
 
-                if op not in added: added.append(op)
+                    print(op_min, op_maj)
 
-                fMin = ROOT.TFile(minorDict[op_min][model])
-                dMin = fMin.Get(minorProc + "_" + op_min)
-                varMin = [i.GetName() for i in dMin.GetListOfKeys()]
+                    if op not in added: added.append(op)
 
-                if not all(i in varMaj for i in varMin):
-                    sys.exit("[ERROR] Found different variables for {} and {},\
-                                 check you inputs".format(majorDict[op_maj][model], minorDict[op_min][model]))
-                
-                finalVars = list(varMaj)
-                # At this point vars are  equal so wecycle on either one
-                for var in varMaj:
+                    fMin = ROOT.TFile(minorDict[op_min][model])
+                    dMin = fMin.Get(minorProc + "_" + op_min)
+                    varMin = [i.GetName() for i in dMin.GetListOfKeys()]
 
-                    fOut.mkdir(args.outprocess + "_" + op_maj  + "/" + var + "/")
-                    fOut.cd(args.outprocess + "_" + op_maj  + "/" + var + "/")
+                    if not all(i in varMaj for i in varMin):
+                        sys.exit("[ERROR] Found different variables for {} and {},\
+                                    check you inputs".format(majorDict[op_maj][model], minorDict[op_min][model]))
+                    
+                    finalVars = list(varMaj)
+                    # At this point vars are  equal so wecycle on either one
+                    for var in varMaj:
 
-                    dCMaj = fMaj.Get(majorProc + "_" + op_maj + "/" + var)
-                    dCMin = fMin.Get(minorProc + "_" + op_min + "/" + var )
+                        fOut.mkdir(args.outprocess + "_" + op_maj  + "/" + var + "/")
+                        fOut.cd(args.outprocess + "_" + op_maj  + "/" + var + "/")
 
-                    compMaj = [i.GetName() for i in dCMaj.GetListOfKeys()]
-                    compMin = [i.GetName() for i in dCMin.GetListOfKeys()]
+                        dCMaj = fMaj.Get(majorProc + "_" + op_maj + "/" + var)
+                        dCMin = fMin.Get(minorProc + "_" + op_min + "/" + var )
+
+                        compMaj = [i.GetName() for i in dCMaj.GetListOfKeys()]
+                        compMin = [i.GetName() for i in dCMin.GetListOfKeys()]
 
 
-                    if not all(i in compMaj for i in compMin):
-                        sys.exit("[ERROR] Found different components for {} and {}, check you inputs".format(majorDict[op_maj][model], minorDict[op_min][model]))
+                        if not all(i in compMaj for i in compMin):
+                            sys.exit("[ERROR] Found different components for {} and {}, check you inputs".format(majorDict[op_maj][model], minorDict[op_min][model]))
 
-                    finalComponent = [i.split("histo_")[1] for i in compMaj]
+                        finalComponent = [i.split("histo_")[1] for i in compMaj]
 
-                    #at this point components are  equal so wecycle on either one
-                    for comp in compMaj:
-                        hMaj = deepcopy( fMaj.Get(majorProc + "_" + op_maj + "/" + var + "/" + comp) )
-                        hMin = deepcopy( fMin.Get(minorProc + "_" + op_min + "/" + var + "/" + comp) )
-                        # print("@ Component: {}".format(comp))
-                        # print("First Integral: {} Second Integral: {}".format(hMaj.Integral(), hMin.Integral()))
-                        hMaj.Add(hMin)
-                        # print("Summed Integral: {}".format(hMaj.Integral()))
+                        #at this point components are  equal so wecycle on either one
+                        for comp in compMaj:
+                            hMaj = deepcopy( fMaj.Get(majorProc + "_" + op_maj + "/" + var + "/" + comp) )
+                            hMin = deepcopy( fMin.Get(minorProc + "_" + op_min + "/" + var + "/" + comp) )
+                            # print("@ Component: {}".format(comp))
+                            # print("First Integral: {} Second Integral: {}".format(hMaj.Integral(), hMin.Integral()))
+                            hMaj.Add(hMin)
+                            # print("Summed Integral: {}".format(hMaj.Integral()))
 
-                        # default name is hMaj key coherent with all the directory names
-                        hMaj.Write(comp)
+                            # default name is hMaj key coherent with all the directory names
+                            hMaj.Write(comp)
 
+                else:
+                    if op not in sole: sole.append(op)
+                    if not all(i in varMaj for i in fallBack[model].keys()):
+                        sys.exit("[ERROR] Found different variables for {} and the fallback SM,\
+                                        check you inputs".format(majorDict[op][model]))
+                    finalVars = list(varMaj)
+                    for var in varMaj:
+                        fOut.mkdir(args.outprocess + "_" + op + "/" + var + "/")
+                        fOut.cd(args.outprocess + "_" + op + "/" + var + "/")
+
+                        dCMaj = fMaj.Get(majorProc + "_" + op + "/" + var)
+                        compMaj = [i.GetName() for i in dCMaj.GetListOfKeys()]
+
+                        finalComponent = [i.split("histo_")[1] for i in compMaj]
+                        finalComponent.append("QCD_" + minorProc)
+
+                        #Just copy the major  dict component
+                        for comp in compMaj:
+                            hMaj = deepcopy( fMaj.Get(majorProc + "_" + op + "/" + var + "/" + comp) )
+                            hMaj.Write(comp)
+                        
+                        # And append the SM component with a name != from combine model names
+                        hSM_bkg = fallBack[model][var]
+                        #god knows why Write does not overwrite object name...
+                        hSM_bkg.SetName("histo_QCD_" + minorProc)
+                        hSM_bkg.Write("histo_QCD_" + minorProc)
+
+            #if args.qcdAsbkg then always add QCD SM shap as bkg         
             else:
                 if op not in sole: sole.append(op)
                 if not all(i in varMaj for i in fallBack[model].keys()):
                     sys.exit("[ERROR] Found different variables for {} and the fallback SM,\
-                                     check you inputs".format(majorDict[op][model]))
+                                    check you inputs".format(majorDict[op][model]))
                 finalVars = list(varMaj)
                 for var in varMaj:
                     fOut.mkdir(args.outprocess + "_" + op + "/" + var + "/")
