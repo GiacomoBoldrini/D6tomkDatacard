@@ -774,7 +774,7 @@ def makeHistos(config, file_dict):
                 print("[INFO] @ ---- Starting filling histos for sample {}, component: {} ---- \
                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, component))
                 for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
-                    nt = (file_dict[s][component][0].split("ntuple_")[1]).split(".root")[0]
+                    nt = (file_dict[s][component][0].split("/ntuple_")[1]).split(".root")[0]
                     base_histos[s][component].update(retrieveHisto(file_dict[s][component], nt, var, bins_, binsize_, ranges_, lumi, cut))
                 
         for dummy in dummies:
