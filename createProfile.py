@@ -12,7 +12,7 @@ def mkdir(p):
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Command line parser for model testing')
+    parser = argparse.ArgumentParser(description='This script allows to start from a folder with all th eshapes and make N folders for N-dimensional fits of all operator pairs. TO BE RUN AFTER MKDATACARD')
     parser.add_argument('--baseFolder',     dest='baseFolder',     help='Base folder containing all the shapes and op e.g. OSWW_1op', required = True)
     parser.add_argument('--prefix',     dest='prefix',     help='base folder prefix name', required = False, default = "to_Latinos")
     parser.add_argument('--models',     dest='models',     help='models to be extracted', required = False, default = "EFTNeg")
