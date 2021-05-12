@@ -60,7 +60,12 @@ def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI, pois):
     }
 
     mod = modeltot2w[model]
-    ranges = ":".join("k_"+op+"={},{}".format(opr[op][0],opr[op][1]) for op in ops)
+
+    if pois == None:
+       ranges = ":".join("k_"+op+"={},{}".format(opr[op][0],opr[op][1]) for op in ops)
+    else:
+       ranges = ":".join("k_"+op+"={},{}".format(-5,5) for op in pois if op not in ops)
+       ranges += ":" + ":".join("k_"+op+"={},{}".format(opr[op][0],opr[op][1]) for op in ops)
 
     f = open(path + "/submit.sh", 'w')
     f.write("#!/bin/sh\n")
