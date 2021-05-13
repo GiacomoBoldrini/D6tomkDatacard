@@ -141,6 +141,10 @@ if __name__ == "__main__":
         compMin = [i.GetName() for i in dCMin.GetListOfKeys()]
 
         finalComponent = [i.split("histo_")[1] for i in compMaj]
+        
+        #Theoretically always present? mkDatacards breaks otherwise i think
+        hMaj = deepcopy( fMaj.Get(majGet + "/" + var + "/histo_DATA") )
+        hMaj.Write("histo_DATA")
 
         if not args.qcdAsbkg:
 
