@@ -163,10 +163,10 @@ if __name__ == "__main__":
 
             # Major part: 
             # Componeent are divided in:
-            # sm -> No EFT dependence, sum  pairwise with qcd (already summed)
-            # quad -> No SM dependence,  add pairwise with qcd or write as it is  if no match
-            # sm_lin_quad -> Sm dependence, Add pairwise with qcd is corrispondence,  else just add QCD SM
-            # sm_lin_quad_mixed ->Sm dependence and 2  operators. Same as before but must take care of op1_op2, op2-op1 commutation
+            # sm -> No EFT dependence, always sum pairwise with qcd shape (already did)
+            # quad -> No SM dependence,  add pairwise with qcd if match found or write as it is (EWK) if no match
+            # sm_lin_quad -> Sm dependence, Add pairwise with qcd if correspondence found (operator shared between EWK and QCD), else just add QCD SM
+            # sm_lin_quad_mixed ->Sm dependence and 2 operators. Same as sm_lin_quad -> Also we must take care of op1_op2, op2-op1 commutations which may happen
 
             for component in compMaj:
 
