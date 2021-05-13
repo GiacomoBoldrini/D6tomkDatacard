@@ -34,7 +34,9 @@ def mkdir(p):
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Command line parser for ewk QCD combination of profiling. STRICTLY WORKS IONLY FOR EFTNeg ALGEBRA')
+    parser = argparse.ArgumentParser(description='Command line parser for ewk QCD combination of profiling. STRICTLY WORKS ONLY FOR EFTNeg ALGEBRA\n \
+                                                    Usage: provide the ewk  and qcd folders generated with a cfg that specifies all the  ops ( [op1:op2:op3:...]). \n \
+                                                    There should be only one subfolder for ewk  and qcd with structure: prefix_process_op1_op2_op3_...')
     parser.add_argument('--ewk',     dest='ewk',     help='Base folder for ewk BEFORE mkDatacards. Only one subfolder with all the ops', required = True)
     parser.add_argument('--qcd',     dest='qcd',     help='Base folder for QCD BEFORE mkDatacards. Only one subfolder with all the ops', required = True)
     parser.add_argument('--outprocess',     dest='outprocess',     help='Name of the final process', required = True)
