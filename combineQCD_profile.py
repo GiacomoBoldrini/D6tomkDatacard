@@ -45,6 +45,7 @@ if __name__ == "__main__":
     parser.add_argument('--prefix_qcd',     dest='prefix_qcd',     help='Prefix of QCD folder including channel name separated by _ eg to_Latinos_OSWWQCD', required = False, default="to_Latinos")
     parser.add_argument('--outfolder',     dest='outfolder',     help='outfolder name', required = False, default="Combined_EWK_QCD")
     parser.add_argument('--qcdAsbkg',     dest='qcdAsbkg',     help='Always add the SM QCD shape as an additional bkg. No QCD dependence on EFT. Default False', default=False, action="store_true")
+    parser.add_argument('--v',     dest='v',     help='Verbose', default=False, action="store_true")
 
     args = parser.parse_args()
 
@@ -168,7 +169,9 @@ if __name__ == "__main__":
             # sm_lin_quad -> Sm dependence, Add pairwise with qcd if correspondence found (operator shared between EWK and QCD), else just add QCD SM
             # sm_lin_quad_mixed ->Sm dependence and 2 operators. Same as sm_lin_quad -> Also we must take care of op1_op2, op2-op1 commutations which may happen
 
-            for component in compMaj:
+            for idx, component in enumerate(compMaj):
+
+                if args.v: print(" ---------- {} : {} ---------- ".format(var,  component) )
 
                 #case quad
                 if "histo_quad" in component:
@@ -177,12 +180,19 @@ if __name__ == "__main__":
                         if component not in  commonComponents: commonComponents.append(component)
                         hMaj = deepcopy( fMaj.Get(majGet + "/" + var + "/" + component) )
                         hMin = deepcopy( fMin.Get(minGet + "/" + var + "/" + component) )
+                        if args.v:
+                            print("@INFO: found quad component in both processes {}".format(component))
+                            print("#Integral before: {}, {} sum: {}".format(hMaj.Integral(), hMin.Integral(),  hMaj.Integral() + hMin.Integral()))
                         hMaj.Add(hMin)
+                        if args.v: print("#Integral after: {}".format(hMaj.Integral()))
                         hMaj.Write(component)
                     #else we only write ewk  QU=QU(EWK)
                     else:
                         if component not in  NotcommonComponents: NotcommonComponents.append(component)
                         hMaj = deepcopy( fMaj.Get(majGet + "/" + var + "/" + component) )
+                        if args.v:
+                            print("@INFO: found quad component in major processes {}".format(component))
+                            print("#Integral: {}".format(hMaj.Integral()))
                         hMaj.Write(component)
 
 
@@ -193,7 +203,11 @@ if __name__ == "__main__":
                         if component not in  commonComponents: commonComponents.append(component)
                         hMaj = deepcopy( fMaj.Get(majGet + "/" + var + "/" + component) )
                         hMin = deepcopy( fMin.Get(minGet + "/" + var + "/" + component) )
+                        if args.v:
+                            print("@INFO: found sm_lin_quad component in both processes {}".format(component))
+                            print("#Integral before: {}, {} sum: {}".format(hMaj.Integral(), hMin.Integral(),  hMaj.Integral() + hMin.Integral()))
                         hMaj.Add(hMin)
+                        if args.v: print("#Integral after: {}".format(hMaj.Integral()))
                         hMaj.Write(component)
                     #else we only write ewk  QU=QU(EWK)
                     else:
@@ -201,7 +215,11 @@ if __name__ == "__main__":
                         hMaj = deepcopy( fMaj.Get(majGet + "/" + var + "/" + component) )
                         #here we retrieve the minor shape -> QCD SM shape
                         hMin = fallBack["EFTNeg"][var]
+                        if args.v:
+                            print("@INFO: found sm_lin_quad component in only one processes {}".format(component))
+                            print("#Integral before: {}, {} sum: {}".format(hMaj.Integral(), hMin.Integral(),  hMaj.Integral() + hMin.Integral()))
                         hMaj.Add(hMin)
+                        if args.v: print("#Integral after: {}".format(hMaj.Integral()))
                         hMaj.Write(component)
 
                 #case sm_lin_quad
@@ -211,14 +229,22 @@ if __name__ == "__main__":
                         if component not in  commonComponents: commonComponents.append(component)
                         hMaj = deepcopy( fMaj.Get(majGet + "/" + var + "/" + component) )
                         hMin = deepcopy( fMin.Get(minGet + "/" + var + "/" + component) )
+                        if args.v:
+                            print("@INFO: found sm_lin_quad_mix component both processes {}".format(component))
+                            print("#Integral before: {}, {} sum: {}".format(hMaj.Integral(), hMin.Integral(),  hMaj.Integral() + hMin.Integral()))
                         hMaj.Add(hMin)
+                        if args.v: print("#Integral after: {}".format(hMaj.Integral()))
                         hMaj.Write(component)
                     #takes care of op1_op2 or op2_op1 differences
                     elif "histo_sm_lin_quad_mixed_" + "_".join(ops[::-1]) in compMin:
                         if component not in  commonComponents: commonComponents.append(component)
                         hMaj = deepcopy( fMaj.Get(majGet + "/" + var + "/" + component) )
                         hMin = deepcopy( fMin.Get(minGet + "/" + var + "/" + "histo_sm_lin_quad_mixed_" + "_".join(ops[::-1])) )
+                        if args.v:
+                            print("@INFO: found sm_lin_quad_mix component in both processes {}".format(component))
+                            print("#Integral before: {}, {} sum: {}".format(hMaj.Integral(), hMin.Integral(),  hMaj.Integral() + hMin.Integral()))
                         hMaj.Add(hMin)
+                        if args.v: print("#Integral after: {}".format(hMaj.Integral()))
                         hMaj.Write(component)
 
                     #else we only write ewk  sm_li_qu_mix = sm(ewk) + sm(qcd) + lin1(ewk) + lin2(ewk) + quad1(ewk) + quad2(ewk) + mix12(ewk)
@@ -227,7 +253,11 @@ if __name__ == "__main__":
                         hMaj = deepcopy( fMaj.Get(majGet + "/" + var + "/" + component) )
                         #here we retrieve the minor shape -> QCD SM shape
                         hMin = fallBack["EFTNeg"][var]
+                        if args.v:
+                            print("@INFO: found sm_lin_quad_mix component in only one processes {}".format(component))
+                            print("#Integral before: {}, {} sum: {}".format(hMaj.Integral(), hMin.Integral(),  hMaj.Integral() + hMin.Integral()))
                         hMaj.Add(hMin)
+                        if args.v: print("#Integral after: {}".format(hMaj.Integral()))
                         hMaj.Write(component)
 
         else:
@@ -262,39 +292,39 @@ if __name__ == "__main__":
     if config.get("d_nuisances", "makeDummy") == "True"        : makeNuisances({sample: finalComponent}, "EFTNeg", config, outPath, isMkDC = False)
         
     
-
-    print("[INFO] Conclusions ...")
-    qu = []
-    slq = []
-    slqm = []
-    for i in commonComponents:
-        if "histo_quad"  in i: qu.append(i)
-        if "histo_sm_lin_quad"  in i and "mixed" not in i: slq.append(i)
-        if "histo_sm_lin_quad_mixed"  in i: slqm.append(i)
-    print("[INFO] The following components are shared and contributions summed {}".format(len(commonComponents)))
-    print("------------- QUAD -----------")
-    print(len(qu), qu)
-    print("------------- SM+LIN+QUAD -----------")
-    print(len(slq), slq)
-    print("------------- SM+LIN+QUAD+MIXED -----------")
-    print(len(slqm), slqm)
-    print("-----------------------")
-    print("-----------------------")
-    print("-----------------------")
-    qu = []
-    slq = []
-    slqm = []
-    for i in NotcommonComponents:
-        if "histo_quad"  in i: qu.append(i)
-        if "histo_sm_lin_quad"  in i  and "mixed" not in i: slq.append(i)
-        if "histo_sm_lin_quad_mixed"  in i: slqm.append(i)
-    print("The following components are not shared. Contributions only from SM summed or ass bkg if specified {}".format(len(NotcommonComponents)))
-    print("------------- QUAD -----------")
-    print(len(qu), qu)
-    print("------------- SM+LIN+QUAD -----------")
-    print(len(slq), slq)
-    print("------------- SM+LIN+QUAD+MIXED -----------")
-    print(len(slqm), slqm)
-    print("-----------------------")
-    print("-----------------------")
-    print("-----------------------")
+    if args.v:
+        print("[INFO] Conclusions ...")
+        qu = []
+        slq = []
+        slqm = []
+        for i in commonComponents:
+            if "histo_quad"  in i: qu.append(i)
+            if "histo_sm_lin_quad"  in i and "mixed" not in i: slq.append(i)
+            if "histo_sm_lin_quad_mixed"  in i: slqm.append(i)
+        print("[INFO] The following components are shared and contributions summed {}".format(len(commonComponents)))
+        print("------------- QUAD -----------")
+        print(len(qu), qu)
+        print("------------- SM+LIN+QUAD -----------")
+        print(len(slq), slq)
+        print("------------- SM+LIN+QUAD+MIXED -----------")
+        print(len(slqm), slqm)
+        print("-----------------------")
+        print("-----------------------")
+        print("-----------------------")
+        qu = []
+        slq = []
+        slqm = []
+        for i in NotcommonComponents:
+            if "histo_quad"  in i: qu.append(i)
+            if "histo_sm_lin_quad"  in i  and "mixed" not in i: slq.append(i)
+            if "histo_sm_lin_quad_mixed"  in i: slqm.append(i)
+        print("The following components are not shared. Contributions only from SM summed or ass bkg if specified {}".format(len(NotcommonComponents)))
+        print("------------- QUAD -----------")
+        print(len(qu), qu)
+        print("------------- SM+LIN+QUAD -----------")
+        print(len(slq), slq)
+        print("------------- SM+LIN+QUAD+MIXED -----------")
+        print(len(slqm), slqm)
+        print("-----------------------")
+        print("-----------------------")
+        print("-----------------------")
