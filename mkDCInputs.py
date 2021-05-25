@@ -325,6 +325,7 @@ def addSMHistogramAsDefault(model_dict, model_type):
                     if not mixed_EFTNegalt + op_p[0] + "_" + op_p[1] in components and not mixed_EFTNegalt + op_p[1] + "_" + op_p[0] in components:
                         print("[INFO] addSMHistogramAsDefault: var {} creating {} ".format( var, mixed_EFTNegalt + op_p[0] + "_" + op_p[1]))
                         h_int = deepcopy(model_dict[sample][var]["sm"])
+                        h_int.Reset("ICESM") #Resetting hissto conteent errorss min max and stats and integral
                         #quad should exist for both operators
                         h_int.Add(model_dict[sample][var]["quad_" + op_p[0]])
                         h_int.Add(model_dict[sample][var]["quad_" + op_p[1]])
