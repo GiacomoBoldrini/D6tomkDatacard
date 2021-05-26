@@ -5,7 +5,9 @@ from glob import glob
 #from configparser import ConfigParser
 import numpy as np
 import stat
+import argparse
 
+"""
 opr = {
     'cW': [-1,1],
     'cHWB': [-20,20],
@@ -21,6 +23,24 @@ opr = {
     'cqq1' : [-2,2] ,  
     'cqq31':  [-2,2] ,   
     'cqq3':  [-3,3] ,   
+    'cll':   [-5,5]   
+}
+"""
+opr = {
+    'cW': [-1,1],
+    'cHWB': [-2,2],
+    'cHl3' : [-1,1],
+    'cHq1':[-3,3],
+    'cHq3': [-1,1],
+    'cll1': [-1,1],
+    'cHbox': [-10,10],
+    'cHDD' : [-10,10], 
+    'cHl1' : [-1,1], 
+    'cHW': [-8,8]  ,    
+    'cqq11': [-1,1]  ,     
+    'cqq1' : [-1,1] ,  
+    'cqq31':  [-1,1] ,   
+    'cqq3':  [-1,1] ,   
     'cll':   [-5,5]   
 }
 
@@ -56,7 +76,9 @@ def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI, pois):
     modeltot2w = {
         "EFT": "EFT",
         "EFTNeg": "EFTNegative",
-        "EFTNeg-alt": "EFTNegative"
+        "EFTNeg-alt": "EFTNegative",
+        "EFTNeg-overall": "EFTNegative",
+        "EFTNeg-alt-overall": "EFTNegative"
     }
 
     mod = modeltot2w[model]
@@ -94,7 +116,10 @@ def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI, pois):
     f.write(to_w)
 
     f.write("#-----------------------------------\n")
-    to_w = "combine -M MultiDimFit model.root  --algo=grid --points {}  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --floatOtherPOI={} --saveSpecifiedFunc={}  --maxFailedSteps 100 --verbose 3".format(npoints, ",".join("k_"+op for op in ops), ranges, floatOtherPOI, ",".join("k_"+op for op in pois))
+    if pois == None:
+        to_w = "combine -M MultiDimFit model.root  --algo=grid --points {}  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --verbose -1".format(npoints, ",".join("k_"+op for op in ops), ranges)
+    else:
+        to_w = "combine -M MultiDimFit model.root  --algo=grid --points {}  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --floatOtherPOI={} --saveSpecifiedFunc={}  --maxFailedSteps 100 --verbose 3".format(npoints, ",".join("k_"+op for op in ops), ranges, floatOtherPOI, ",".join("k_"+op for op in pois))
     to_w += "\n"
     f.write(to_w)
     f.write("cp model.root {}\n".format(path))
@@ -129,26 +154,33 @@ def makeSub(path_, all_paths):
 
 if __name__ == "__main__":
 
-    if len(sys.argv) < 4: sys.exit("[ERROR] Provide folder path, prefix, process name, [npoints = 20000], [models = EFTNeg], [flavour = microcentury], [floatOtherPOI = 0], [ pois = Default ] after running mkDatacards.py ...")
+    parser = argparse.ArgumentParser(description='Command line parser')
+    parser.add_argument('-b',     dest='base',     help='Base folder path', required = True)
+    parser.add_argument('--prefix',     dest='prefix',     help='Prefix', required = True)
+    parser.add_argument('--proc',     dest='proc',     help='Process name', required = True)
+    parser.add_argument('-N',     dest='points',     help='Number of points', required = False, default=20000, type=int)
+    parser.add_argument('--models',     dest='models',     help='Comma separated list of models', required = False, default='EFTNeg')
+    parser.add_argument('-Q',     dest='queue',     help='Queue flavour', required = False, default='microcentury')
+    parser.add_argument('--floatOtherPOI',     dest='floatotherpoi',     help='floatOtherPOI', required = False, default=0)
+    parser.add_argument('--pois',     dest='pois',     help='pois', required = False)
+    parser.add_argument('--compute',     dest='compute',     help='Comma separated list of operators to be computed', required = False)
+    args = parser.parse_args()
 
-    subf = glob(sys.argv[1] + "/*/")
-    prefix = sys.argv[2]
-    process = sys.argv[3]
-    npoints = 20000
-    models = ["EFTNeg"]
-    flavour = "microcentury"
-    floatOtherPOI = 0
-    pois = None
-    if len(sys.argv) > 4:
-        npoints = sys.argv[4]
-    if len(sys.argv) > 5:
-        models = sys.argv[5].split(",")
-    if len(sys.argv) > 6:
-        flavour = sys.argv[6]
-    if len(sys.argv) > 7:
-        floatOtherPOI = sys.argv[7]
-    if len(sys.argv) > 8:
-        pois = sys.argv[8].split(",")
+    subf = glob(args.base + "/*/")
+    prefix = args.prefix
+    process = args.proc
+    npoints = args.points
+    models = args.models.split(',')
+    flavour = args.queue
+    floatOtherPOI = args.floatotherpoi
+    if args.pois is None:
+        pois = None
+    else:
+        pois = args.pois.split(',')
+    if args.compute is None:
+        to_compute = None
+    else:
+        to_compute = args.compute.split(',')
     all_sub_paths = []
 
     print(". . . @ @ @ Retrieving folders @ @ @ . . .")
@@ -158,6 +190,11 @@ if __name__ == "__main__":
         prc = subfolder.split(prefix+"_")[-1]
         ops = prc.split(process + "_")[-1]
         ops = ops.split("_")
+
+        if to_compute is not None:
+            if len(set(to_compute).intersection(set(ops))) == 0:
+                print(">>> skipping operator {0}".format(ops))
+                continue
                
         for model in models:
             vars_ = glob(s + "/" + model + "/datacards/" + prc + "/*/")
@@ -168,7 +205,7 @@ if __name__ == "__main__":
 
                 all_sub_paths.append(os.path.abspath(v))
 
-    makeSub(sys.argv[1], all_sub_paths)
+    makeSub(args.base, all_sub_paths)
 
     print(". . . @ @ @ Done @ @ @ . . .")
 
