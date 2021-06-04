@@ -5,44 +5,53 @@ from glob import glob
 #from configparser import ConfigParser
 import numpy as np
 import stat
-import argparse
+from copy import deepcopy
+import json
 
-"""
 opr = {
-    'cW': [-1,1],
-    'cHWB': [-20,20],
-    'cHl3' : [-2,2],
-    'cHq1':[-4,4],
-    'cHq3': [-4,4],
-    'cll1': [-2,2],
-    'cHbox': [-20,20],
-    'cHDD' : [-20,20], 
-    'cHl1' : [-20,20], 
-    'cHW': [-8,8]  ,    
-    'cqq11': [-2,2]  ,     
-    'cqq1' : [-2,2] ,  
-    'cqq31':  [-2,2] ,   
-    'cqq3':  [-3,3] ,   
-    'cll':   [-5,5]   
-}
-"""
-opr = {
-    'cW': [-1,1],
-    'cHWB': [-2,2],
-    'cHl3' : [-1,1],
-    'cHq1':[-3,3],
-    'cHq3': [-1,1],
+    'cW': [-7,7],
+    'cHWB': [-40,40],
+    'cHl3' : [-20,20],
+    'cHq1':[-10,10],
+    'cHq3': [-10,10],
     'cll1': [-1,1],
-    'cHbox': [-10,10],
-    'cHDD' : [-10,10], 
-    'cHl1' : [-1,1], 
-    'cHW': [-8,8]  ,    
-    'cqq11': [-1,1]  ,     
-    'cqq1' : [-1,1] ,  
-    'cqq31':  [-1,1] ,   
-    'cqq3':  [-1,1] ,   
-    'cll':   [-5,5]   
+    'cHbox': [-40,30],
+    'cHDD' : [-5,5], 
+    'cHl1' : [-3,3], 
+    'cHW': [-20,20]  ,    
+    'cqq11': [-4,4]  ,     
+    'cqq1' : [-4,4] ,  
+    'cqq31':  [-4,4] ,   
+    'cqq3':  [-4,4] ,   
+    'cll':   [-200,200]   
 }
+
+poir = deepcopy(opr) 
+
+def read_results(rf):
+    
+    res = {}
+    f = open(rf, "r")
+    content = f.readlines()[2:-2]
+    c = [i.split("\t") for i in content] #0: op #1: var #2: 1sigma #3: 2 sigma
+    for i in c:
+        op = i[0].strip(" ")
+        
+        #1s
+        os = json.loads(i[2])
+        #2s
+        ts = json.loads(i[3])
+        res[op] = {}
+        res[op]["1s"] = os
+        res[op]["2s"] = ts
+        
+    return res
+
+def reaOPranges(txt):
+    res  = read_results(txt)
+    for op in  res.keys():
+       poir[op] = res[op]['2s']
+    return
 
 def redemensionOpinput(config):
     sample = config.getlist("general", "sample")
@@ -76,19 +85,18 @@ def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI, pois):
     modeltot2w = {
         "EFT": "EFT",
         "EFTNeg": "EFTNegative",
-        "EFTNeg-alt": "EFTNegative",
-        "EFTNeg-overall": "EFTNegative",
-        "EFTNeg-alt-overall": "EFTNegative"
+        "EFTNeg-alt": "EFTNegative"
     }
 
     mod = modeltot2w[model]
-
     if pois == None:
+       pois = []
        ranges = ":".join("k_"+op+"={},{}".format(opr[op][0],opr[op][1]) for op in ops)
     else:
-       ranges = ":".join("k_"+op+"={},{}".format(-5,5) for op in pois if op not in ops)
+       ranges = ":".join("k_"+op+"={},{}".format(poir[op][0], poir[op][1]) for op in pois if op not in ops)
        ranges += ":" + ":".join("k_"+op+"={},{}".format(opr[op][0],opr[op][1]) for op in ops)
-
+       ranges += ":r=1,1"
+    
     f = open(path + "/submit.sh", 'w')
     f.write("#!/bin/sh\n")
     f.write("#-----------------------------------\n")
@@ -108,7 +116,7 @@ def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI, pois):
         if "alt" in model: to_w += " --PO  eftAlternative"
     else:
         to_w = "text2workspace.py  {}/datacard.txt  -P HiggsAnalysis.AnalyticAnomalousCoupling.AnomalousCoupling{}:analiticAnomalousCoupling{}  -o   model.root \
-        --X-allow-no-signal --PO eftOperators={}".format(path, mod, mod, ",".join(op for op in pois))        
+        --X-allow-no-signal --PO eftOperators={}".format(path, mod, mod, ",".join(op for op in ops +  pois))        
         if "alt" in model: to_w += " --PO  eftAlternative"
 
     
@@ -116,10 +124,7 @@ def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI, pois):
     f.write(to_w)
 
     f.write("#-----------------------------------\n")
-    if pois == None:
-        to_w = "combine -M MultiDimFit model.root  --algo=grid --points {}  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --verbose -1".format(npoints, ",".join("k_"+op for op in ops), ranges)
-    else:
-        to_w = "combine -M MultiDimFit model.root  --algo=grid --points {}  -m 125   -t -1   --robustFit=1 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --floatOtherPOI={} --saveSpecifiedFunc={}  --maxFailedSteps 100 --verbose 3".format(npoints, ",".join("k_"+op for op in ops), ranges, floatOtherPOI, ",".join("k_"+op for op in pois))
+    to_w = "combine -M MultiDimFit model.root  --algo=grid --points {}  -m 125   -t -1 --robustFit=1 --setRobustFitStrategy=1 --robustHesse=1  --maxFailedSteps 100 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --floatOtherPOI={} --saveSpecifiedFunc={} --verbose 3".format(npoints, ",".join("k_"+op for op in ops), ranges, floatOtherPOI,",".join("k_"+op for op in pois))
     to_w += "\n"
     f.write(to_w)
     f.write("cp model.root {}\n".format(path))
@@ -154,33 +159,30 @@ def makeSub(path_, all_paths):
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Command line parser')
-    parser.add_argument('-b',     dest='base',     help='Base folder path', required = True)
-    parser.add_argument('--prefix',     dest='prefix',     help='Prefix', required = True)
-    parser.add_argument('--proc',     dest='proc',     help='Process name', required = True)
-    parser.add_argument('-N',     dest='points',     help='Number of points', required = False, default=20000, type=int)
-    parser.add_argument('--models',     dest='models',     help='Comma separated list of models', required = False, default='EFTNeg')
-    parser.add_argument('-Q',     dest='queue',     help='Queue flavour', required = False, default='microcentury')
-    parser.add_argument('--floatOtherPOI',     dest='floatotherpoi',     help='floatOtherPOI', required = False, default=0)
-    parser.add_argument('--pois',     dest='pois',     help='pois', required = False)
-    parser.add_argument('--compute',     dest='compute',     help='Comma separated list of operators to be computed', required = False)
-    args = parser.parse_args()
+    if len(sys.argv) < 4: sys.exit("[ERROR] Provide folder path, prefix, process name, [npoints = 20000], [models = EFTNeg], [flavour = microcentury], [floatOtherPOI = 0], [ pois = Default ] [poisRanges =  results.txt] after running mkDatacards.py ...")
 
-    subf = glob(args.base + "/*/")
-    prefix = args.prefix
-    process = args.proc
-    npoints = args.points
-    models = args.models.split(',')
-    flavour = args.queue
-    floatOtherPOI = args.floatotherpoi
-    if args.pois is None:
-        pois = None
-    else:
-        pois = args.pois.split(',')
-    if args.compute is None:
-        to_compute = None
-    else:
-        to_compute = args.compute.split(',')
+    subf = glob(sys.argv[1] + "/*/")
+    prefix = sys.argv[2]
+    process = sys.argv[3]
+    npoints = 20000
+    models = ["EFTNeg"]
+    flavour = "microcentury"
+    floatOtherPOI = 0
+    pois = None
+    if len(sys.argv) > 4:
+        npoints = sys.argv[4]
+    if len(sys.argv) > 5:
+        models = sys.argv[5].split(",")
+    if len(sys.argv) > 6:
+        flavour = sys.argv[6]
+    if len(sys.argv) > 7:
+        floatOtherPOI = sys.argv[7]
+    if len(sys.argv) > 8:
+        pois = sys.argv[8].split(",")
+    if len(sys.argv) > 9:
+        res = sys.argv[9]
+        reaOPranges(res)
+
     all_sub_paths = []
 
     print(". . . @ @ @ Retrieving folders @ @ @ . . .")
@@ -190,11 +192,6 @@ if __name__ == "__main__":
         prc = subfolder.split(prefix+"_")[-1]
         ops = prc.split(process + "_")[-1]
         ops = ops.split("_")
-
-        if to_compute is not None:
-            if len(set(to_compute).intersection(set(ops))) == 0:
-                print(">>> skipping operator {0}".format(ops))
-                continue
                
         for model in models:
             vars_ = glob(s + "/" + model + "/datacards/" + prc + "/*/")
@@ -205,7 +202,7 @@ if __name__ == "__main__":
 
                 all_sub_paths.append(os.path.abspath(v))
 
-    makeSub(args.base, all_sub_paths)
+    makeSub(sys.argv[1], all_sub_paths)
 
     print(". . . @ @ @ Done @ @ @ . . .")
 
