@@ -85,7 +85,9 @@ def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI, pois):
     modeltot2w = {
         "EFT": "EFT",
         "EFTNeg": "EFTNegative",
-        "EFTNeg-alt": "EFTNegative"
+        "EFTNeg-alt": "EFTNegative",
+        "EFTNeg-overall": "EFTNegative",
+        "EFTNeg-alt-overall": "EFTNegative"
     }
 
     mod = modeltot2w[model]
