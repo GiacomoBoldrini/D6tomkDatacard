@@ -393,7 +393,7 @@ def histosToModel(histo_dict, model_type = "EFT", fillMissing = True):
                     eft_neg_dict[sample][var]["SM_LI_QU_INT_{}_{}".format(o_c[0], o_c[1])] = new_sm
         
         the_cleaned_dict = cleanNames(deepcopy(eft_neg_dict))
-        if fillMissing: the_cleaned_dict = addSMHistogramAsDefault(deepcopy(the_cleaned_dict), model_type)
+        #if fillMissing: the_cleaned_dict = addSMHistogramAsDefault(deepcopy(the_cleaned_dict), model_type)
         return the_cleaned_dict
         #return cleanNames(deepcopy(eft_neg_dict))
 
@@ -451,7 +451,7 @@ def histosToModel(histo_dict, model_type = "EFT", fillMissing = True):
                     eft_negalt_dict[sample][var]["QU_INT_{}_{}".format(o_c[0], o_c[1])] = new_sm
 
         the_cleaned_dict = cleanNames(deepcopy(eft_negalt_dict))
-        if fillMissing: the_cleaned_dict = addSMHistogramAsDefault(deepcopy(the_cleaned_dict), model_type)
+        #if fillMissing: the_cleaned_dict = addSMHistogramAsDefault(deepcopy(the_cleaned_dict), model_type)
         return the_cleaned_dict
         #return cleanNames(deepcopy(eft_negalt_dict))
 
@@ -566,9 +566,12 @@ def retireve_samples(config):
 
             file_dict[sh]["QU_{}".format(op)] = cleanDuplicates(file_dict[sh]["QU_{}".format(op)])
             file_dict[sh]["LI_{}".format(op)] = cleanDuplicates(file_dict[sh]["LI_{}".format(op)])
-            
 
-                        
+            if len(file_dict[sh]["QU_{}".format(op)]) == 0:
+                print("[WARNING] Missing interference sample for op {}".format(op))
+            if len(file_dict[sh]["LI_{}".format(op)]) == 0:
+                print("[WARNING] Missing interference sample for op {}".format(op))
+                              
         #scan interference if present
         if int_:
             for c1, c2 in zip(comb, comb2):
@@ -594,7 +597,7 @@ def retireve_samples(config):
                 else: #interference does not exist (can happen!) delete the fields so makeHistos do not see this
                     print("[WARNING] Missing interference sample for pair {},{}".format(c1[0], c1[1]))
                     del file_dict[sh]["IN_{}_{}".format(c1[0], c1[1])]
-                    del file_dict[sh]["IN_{}_{}".format(c2[0], c2[1])]
+                    #del file_dict[sh]["IN_{}_{}".format(c2[0], c2[1])]
                     continue
                 
                 #don't remember what this check is for...
@@ -757,6 +760,9 @@ def makeHistos(config, file_dict):
     histo_name = config.getlist("variables", "histonames")
     lumi = float(config.get("general", "lumi"))
 
+    fillMissing_ = 0
+    if config.has_option("eft", "fillMissing"): fillMissing_ = config.get("eft", "fillMissing")
+
     dummies = []
     if config.has_option("variables", "makeDummy"): dummies = config.getlist("variables", "makeDummy")
 
@@ -778,7 +784,13 @@ def makeHistos(config, file_dict):
                 for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
                     nt = (file_dict[s][component][0].split("/ntuple_")[1]).split(".root")[0]
                     base_histos[s][component].update(retrieveHisto(file_dict[s][component], nt, var, bins_, binsize_, ranges_, lumi, cut))
-                
+            elif fillMissing_:
+                base_histos[s][component] = {}
+                print("[WARNING] Missing component for component {} but fillMissing = 1 so filling it with a 0 content histo ...".format(component))
+                print("[INFO] @ ---- Starting filling histos for sample {}, component: {} ---- \
+                \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, component))
+                for var, bins_, ranges_ in zip(vars_, bins, ranges) :
+                    base_histos[s][component].update(retrieveDummy( var, var, bins_, ranges_))
         for dummy in dummies:
             print("[INFO] @ ---- Filling dummy histos for sample {}, component: {} ---- \
                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, dummy))
