@@ -224,7 +224,7 @@ if __name__ == "__main__":
 
                 #case sm_lin_quad
                 if "histo_sm_lin_quad_mixed" in component:
-                    ops  = component.split("histo_sm_lin_quad_mixed_")[1]
+                    ops  = component.split("histo_sm_lin_quad_mixed_")[1].split("_")
                     if component in compMin:
                         if component not in  commonComponents: commonComponents.append(component)
                         hMaj = deepcopy( fMaj.Get(majGet + "/" + var + "/" + component) )
@@ -266,7 +266,7 @@ if __name__ == "__main__":
 
             #Just copy the major  dict component
             for comp in compMaj:
-                if component not in  NotcommonComponents: NotcommonComponents.append(comp)
+                if comp not in  NotcommonComponents: NotcommonComponents.append(comp)
                 hMaj = deepcopy( fMaj.Get(majGet + "/" + var + "/" + comp) )
                 hMaj.Write(comp)
             
