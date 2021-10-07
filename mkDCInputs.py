@@ -806,8 +806,8 @@ def makeHistos(config, file_dict):
                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, dummy))
             vars_copy = base_histos[s][file_dict[s].keys()[0]].keys() #because here we retrieved from the .root, can be "*"
             base_histos[s][dummy] = {}
-            for var, bins_, ranges_ in zip(vars_, bins, ranges) :
-                base_histos[s][dummy].update(retrieveDummy( dummy, var, bins_, ranges_))
+            for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
+                base_histos[s][dummy].update(retrieveDummy( dummy, var, bins_, binsize_, ranges_))
                     
     base_histos = invertHistoDict(base_histos)
     
