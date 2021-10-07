@@ -626,22 +626,32 @@ def retireve_samples(config):
     return file_dict
 
 
-def retrieveDummy(name, var, bins, ranges):
+def retrieveDummy(name, var, bins, binsize, ranges):
 
     if var == "*":
         var = [i.GetName() for i in chain.GetListOfBranches()]
         bins = bins*len(var)
+        binsize = binsize*len(var)
         ranges = ranges*len(var)
 
     if type(var) != list: 
         var = [var]
         bins = [bins]
+        binsize = [binsize]
         ranges = [ranges]
 
     th_dict = dict.fromkeys(var)
-    for v, b, r in zip(var, bins, ranges):
+    for v, b, bs, r in zip(var, bins, binsize, ranges):
         print("[INFO] @ Filling {} histo dummy ...".format(v))
-        h = ROOT.TH1D(name + "_" + v, name, b, r[0], r[1])
+        if bs == "fix":
+            h = ROOT.TH1D(name + "_" + v, name, b, r[0], r[1])
+
+        if bs == "log":
+            h = mkLogHisto(name + "_" + v, b, r[0], r[1])
+
+        elif bs != "fix" and bs !=  "log":
+            sys.exit("[ERROR] Choose binsize between log and fix ... ")
+        #h = ROOT.TH1D(name + "_" + v, name, b, r[0], r[1])
         for i in range(1, b):
             h.SetBinContent(i,0)
 
@@ -789,8 +799,8 @@ def makeHistos(config, file_dict):
                 print("[WARNING] Missing component for component {} but fillMissing = 1 so filling it with a 0 content histo ...".format(component))
                 print("[INFO] @ ---- Starting filling histos for sample {}, component: {} ---- \
                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, component))
-                for var, bins_, ranges_ in zip(vars_, bins, ranges) :
-                    base_histos[s][component].update(retrieveDummy( var, var, bins_, ranges_))
+                for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
+                    base_histos[s][component].update(retrieveDummy( var, var, bins_, binsize_, ranges_))
         for dummy in dummies:
             print("[INFO] @ ---- Filling dummy histos for sample {}, component: {} ---- \
                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, dummy))
