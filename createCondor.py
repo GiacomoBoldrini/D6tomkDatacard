@@ -127,7 +127,7 @@ def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI, pois):
     f.write(to_w)
 
     f.write("#-----------------------------------\n")
-    to_w = "combine -M MultiDimFit model.root  --algo=grid --points {}  -m 125   -t -1 --robustFit=1 --setRobustFitTolerance=0.3 --cminDefaultMinimizerStrategy=0 --X-rtd=MINIMIZER_analytic --X-rtd MINIMIZER_MaxCalls=9999999 --cminFallbackAlgo Minuit2,Migrad,0:0.3 --stepSize=0.001 --setRobustFitStrategy=1 --robustHesse=1  --maxFailedSteps 100 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --floatOtherPOI={} --saveSpecifiedFunc={} --verbose 3".format(npoints, ",".join("k_"+op for op in ops), ranges, floatOtherPOI,",".join("k_"+op for op in pois))
+    to_w = "combine -M MultiDimFit model.root  --algo=grid --points {}  -m 125   -t -1 --robustFit=1 --setRobustFitTolerance=0.3 --cminDefaultMinimizerStrategy=0 --X-rtd=MINIMIZER_analytic --X-rtd MINIMIZER_MaxCalls=9999999 --cminFallbackAlgo Minuit2,Migrad,0:0.3 --stepSize=0.001 --setRobustFitStrategy=1 --robustHesse=1  --maxFailedSteps 100 --X-rtd FITTER_NEW_CROSSING_ALGO --X-rtd FITTER_NEVER_GIVE_UP --X-rtd FITTER_BOUND --redefineSignalPOIs {}     --freezeParameters r      --setParameters r=1    --setParameterRanges {}  --floatOtherPOIs={} --saveSpecifiedFunc={} --verbose 3".format(npoints, ",".join("k_"+op for op in ops), ranges, floatOtherPOI,",".join("k_"+op for op in pois))
     to_w += "\n"
     f.write(to_w)
     f.write("cp model.root {}\n".format(path))
