@@ -14,6 +14,7 @@ import numpy as np
 import Utils # This is needed to load EFT shape makers
 from Utils.dcInputGeneralUtils import * # This is needed to load general utilities functions
 from Utils.dcInputHistoUtils import * # This is needed to load general histogram functions
+from src.workerLeader import WorkerLeader
 
 def prettyPrintConfig(config, file_dict):
 
@@ -49,7 +50,7 @@ def prettyPrintConfig(config, file_dict):
     return
 
 
-def makeHistos(config, file_dict):
+def makeHistos(config, file_dict, nThreads):
 
     vars_ = config.getlist("variables", "treenames")
     bins = [int(i) for i in config.getlist("variables", "bins")]
@@ -70,36 +71,112 @@ def makeHistos(config, file_dict):
     cut = "1==1"
     if config.has_option("cuts", "normalcuts"): cut = makeCut(config)    
 
-    base_histos = dict.fromkeys(file_dict.keys()) 
+    # base_histos = dict.fromkeys(file_dict.keys()) 
 
-    for s in file_dict.keys():
-        base_histos[s] = {}
-        for component in file_dict[s]:
-            if len(file_dict[s][component]) != 0:
-                base_histos[s][component] = {}
-                print("[INFO] @ ---- Starting filling histos for sample {}, component: {} ---- \
-                \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, component))
-                for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
-                    nt = (file_dict[s][component][0].split("/ntuple_")[1]).split(".root")[0]
-                    base_histos[s][component].update(retrieveHisto(file_dict[s][component], nt, var, bins_, binsize_, ranges_, lumi, cut))
-            elif fillMissing_:
-                base_histos[s][component] = {}
-                print("[WARNING] Missing component for component {} but fillMissing = 1 so filling it with a 0 content histo ...".format(component))
-                print("[INFO] @ ---- Starting filling histos for sample {}, component: {} ---- \
-                \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, component))
-                for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
-                    base_histos[s][component].update(retrieveDummy( var, var, bins_, binsize_, ranges_))
-        for dummy in dummies:
-            print("[INFO] @ ---- Filling dummy histos for sample {}, component: {} ---- \
-                \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, dummy))
-            vars_copy = base_histos[s][file_dict[s].keys()[0]].keys() #because here we retrieved from the .root, can be "*"
-            base_histos[s][dummy] = {}
-            for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
-                base_histos[s][dummy].update(retrieveDummy( dummy, var, bins_, binsize_, ranges_))
-                    
+    # for s in file_dict.keys():
+    #    base_histos[s] = {}
+
+    WL = WorkerLeader(file_dict, nWorkers=nThreads)
+    WL.setVars(vars_)
+    WL.setBins(bins)
+    WL.setBinSize(binsize)
+    WL.setRanges(ranges)
+    WL.setHistoNames(histo_name)
+    WL.setLumi(lumi)
+    WL.setFillMissing(fillMissing_)
+    WL.setCut(cut)
+
+    #WL.setBaseDict(base_histos)
+    WL.setBaseDict(file_dict.keys())
+
+    WL.initializeWorkers()
+
+    #sys.exit()
+
+    WL.startWorkers()
+
+    base_histos = WL.joinWorkerDicts()
+    print(base_histos)
+
+        # for component in file_dict[s]:
+        #     if len(file_dict[s][component]) != 0:
+        #         base_histos[s][component] = {}
+        #         print("[INFO] @ ---- Starting filling histos for sample {}, component: {} ---- \
+        #         \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, component))
+        #         for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
+        #             nt = (file_dict[s][component][0].split("/ntuple_")[1]).split(".root")[0]
+        #             base_histos[s][component].update(retrieveHisto(file_dict[s][component], nt, var, bins_, binsize_, ranges_, lumi, cut))
+        #     elif fillMissing_:
+        #         base_histos[s][component] = {}
+        #         print("[WARNING] Missing component for component {} but fillMissing = 1 so filling it with a 0 content histo ...".format(component))
+        #         print("[INFO] @ ---- Starting filling histos for sample {}, component: {} ---- \
+        #         \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, component))
+        #         for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
+        #             base_histos[s][component].update(retrieveDummy( var, var, bins_, binsize_, ranges_))
+        # for dummy in dummies:
+        #     print("[INFO] @ ---- Filling dummy histos for sample {}, component: {} ---- \
+        #         \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, dummy))
+        #     vars_copy = base_histos[s][file_dict[s].keys()[0]].keys() #because here we retrieved from the .root, can be "*"
+        #     base_histos[s][dummy] = {}
+        #     for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
+        #         base_histos[s][dummy].update(retrieveDummy( dummy, var, bins_, binsize_, ranges_))
+    
     base_histos = invertHistoDict(base_histos)
     
     return base_histos
+
+
+# def makeHistos(config, file_dict):
+
+#     vars_ = config.getlist("variables", "treenames")
+#     bins = [int(i) for i in config.getlist("variables", "bins")]
+#     binsize = config.getlist("variables", "binsize")
+#     ranges = convertCfgLists(config.getlist("variables", "xrange"))
+#     histo_name = config.getlist("variables", "histonames")
+#     lumi = float(config.get("general", "lumi"))
+
+#     fillMissing_ = 0
+#     if config.has_option("eft", "fillMissing"): fillMissing_ = config.get("eft", "fillMissing")
+
+#     dummies = []
+#     if config.has_option("variables", "makeDummy"): dummies = config.getlist("variables", "makeDummy")
+
+#     if vars_[0] != "*" and len(vars_) != len(bins) or len(vars_) != len(ranges) or len(vars_) != len(binsize):
+#         sys.exit("[ERROR] var names ({}) and bins({})/binsize({})/xranges({}) do not match. Ignore or take action ...".format(len(vars_),len(bins), len(binsize),len(ranges)))
+
+#     cut = "1==1"
+#     if config.has_option("cuts", "normalcuts"): cut = makeCut(config)    
+
+#     base_histos = dict.fromkeys(file_dict.keys()) 
+
+#     for s in file_dict.keys():
+#         base_histos[s] = {}
+#         for component in file_dict[s]:
+#             if len(file_dict[s][component]) != 0:
+#                 base_histos[s][component] = {}
+#                 print("[INFO] @ ---- Starting filling histos for sample {}, component: {} ---- \
+#                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, component))
+#                 for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
+#                     nt = (file_dict[s][component][0].split("/ntuple_")[1]).split(".root")[0]
+#                     base_histos[s][component].update(retrieveHisto(file_dict[s][component], nt, var, bins_, binsize_, ranges_, lumi, cut))
+#             elif fillMissing_:
+#                 base_histos[s][component] = {}
+#                 print("[WARNING] Missing component for component {} but fillMissing = 1 so filling it with a 0 content histo ...".format(component))
+#                 print("[INFO] @ ---- Starting filling histos for sample {}, component: {} ---- \
+#                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, component))
+#                 for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
+#                     base_histos[s][component].update(retrieveDummy( var, var, bins_, binsize_, ranges_))
+#         for dummy in dummies:
+#             print("[INFO] @ ---- Filling dummy histos for sample {}, component: {} ---- \
+#                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(s, dummy))
+#             vars_copy = base_histos[s][file_dict[s].keys()[0]].keys() #because here we retrieved from the .root, can be "*"
+#             base_histos[s][dummy] = {}
+#             for var, bins_, binsize_, ranges_ in zip(vars_, bins, binsize, ranges) :
+#                 base_histos[s][dummy].update(retrieveDummy( dummy, var, bins_, binsize_, ranges_))
+                    
+#     base_histos = invertHistoDict(base_histos)
+    
+#     return base_histos
 
 if __name__ == "__main__":
 
@@ -125,6 +202,9 @@ if __name__ == "__main__":
 
     parser.add_argument('--v',     dest='verbose',     help='Optional prints with retrieved infos', default = True, action = 'store_false',
                        required = False)
+
+    parser.add_argument('--nt',     dest='nThreads',     help='Number of threads to divide the histogram filling. Default is one', 
+                       required = False, default = 1, type=int)
 
     args = parser.parse_args()
 
@@ -156,7 +236,7 @@ if __name__ == "__main__":
 
     if args.verbose: prettyPrintConfig(config, fd)
 
-    base_histo = makeHistos(config, fd)
+    base_histo = makeHistos(config, fd, args.nThreads)
 
     for process in base_histo.keys():
 
