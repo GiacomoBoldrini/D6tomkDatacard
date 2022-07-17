@@ -16,6 +16,7 @@ if __name__ == "__main__":
     parser.add_argument('--after_mkD',     dest='after_mkD',     help='if the folder was generated after mkDatacard', required = False, default = "False", action="store_true")
     parser.add_argument('--d',     dest='dir',     help='Overrides the output folder from the cfg file (for example if you run  combineQCD)', required = False)
     parser.add_argument('--p',     dest='proc',     help='Overrides the process, otherwise it supposes: prefix_process_operator(s)', required = False)
+    parser.add_argument('--qi',     dest='qi',     help='Also removes the quadratic interference between pairs of operators', required = False, default=False, action="store_true")
 
     args = parser.parse_args()
 
@@ -35,7 +36,8 @@ if __name__ == "__main__":
     #retrieve every subfolder for each operator
     subf = glob(outdir + "/*/")
 
-    #cycle on the subfolders    
+    #cycle on the subfolders 
+    print("@ ---- [INFO] Removing pure BSM ---- @")   
     for s in subf:
         
         #retrieve process, ops from subfolder name
@@ -72,6 +74,8 @@ if __name__ == "__main__":
                 d = f.Get(str(process + "/" + var))
                 #get the histo names histo_ + proc + operators involved
                 histos = [i.GetName() for i in d.GetListOfKeys()]
+
+                print(histos)
 
                 #defining the components we want to put at zero
                 q_ = "quad_"
@@ -127,5 +131,11 @@ if __name__ == "__main__":
             #remove old file and replace it with the new one with previous name
             os.system("rm {}".format(file_n))
             os.system("mv {} {}".format(file_n.replace(outfile, '') + "tmp.root", file_n))
+
+        if args.qi:
+            print("@ ---- [INFO] Removing mixed interference ---- @")   
+            model = "EFT"
+            
+
 
     print(". . . @ @ @ Done @ @ @ . . .")

@@ -3,6 +3,7 @@ from glob import glob
 import os
 import argparse
 from itertools import combinations
+import sys
 
 def mkdir(p):
    try:

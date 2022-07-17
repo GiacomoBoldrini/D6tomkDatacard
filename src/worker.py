@@ -17,6 +17,8 @@ class Worker(multiprocessing.Process):
         self.fileList = fileList
         self.histoSetDict = histoSetDict
         self.run_event = threading.Event()
+        self.manager = Manager()
+        self.histos = self.manager.dict()
 
 
     def mkLogHisto(self, v, b, low, up):
@@ -128,67 +130,41 @@ class Worker(multiprocessing.Process):
         return th_dict
 
     def run(self):
-        #self.run_event.wait() #wait until the event is set
 
         print("Starting ...")
-        print(self.baseDict)
-
-        #self.retrieveHisto(self.fileList[s][component], nt, var, bins_, binsize_, ranges_, lumi, cut)
-        # for s in self.fileList.keys():
-        #     self.baseDict[s] = {}
-        #     for component in self.fileList[s]:
-        #         if len(self.fileList[s][component]) != 0:
-        #             self.baseDict[s][component] = {}
-        #             print("[INFO] @ ---- Starting filling histos for component: {} ---- \
-        #             \n ---------- @ @ @ @ @ @ @ ---------- ".format(component))
-
-        #             for var, bins_, binsize_, ranges_ in zip(self.histoSetDict["vars"], self.histoSetDict["bins"], self.histoSetDict["binsize"], self.histoSetDict["ranges"]) :
-        #                 nt = (self.fileList[s][component][0].split("/ntuple_")[1]).split(".root")[0]
-        #                 self.baseDict[s][component].update(self.retrieveHisto(self.fileList[s][component], nt, var, bins_, binsize_, ranges_, self.histoSetDict["lumi"], self.histoSetDict["cut"]))
-                
-        #         elif self.histoSetDict["fillMissing"]:
-        #             self.baseDict[s][component] = {}
-        #             print("[WARNING] Missing component for component {} but fillMissing = 1 so filling it with a 0 content histo ...".format(component))
-        #             print("[INFO] @ ---- Starting filling histos for component: {} ---- \
-        #             \n ---------- @ @ @ @ @ @ @ ---------- ".format(component))
-
-        #             for var, bins_, binsize_, ranges_ in zip(self.histoSetDict["vars"], self.histoSetDict["bins"], self.histoSetDict["binsize"], self.histoSetDict["ranges"]) :
-        #                 self.baseDict[s][component].update(self.retrieveDummy( component, var, bins_, binsize_, ranges_))
-
         
         for idx, f in enumerate(self.fileList):
             s = self.fileList[idx]["s"]
             paths = self.fileList[idx]["path"]
             component = self.fileList[idx]["comp"]
+            
+            if s not in self.histos.keys():
+                self.histos[s] = self.manager.dict()
+
+            curr_hist = self.histos[s]
+
+            curr_hist[component] = self.manager.dict()
+
+
             if len(paths) != 0:
-                #self.baseDict[s][component] = {}
-                #self.baseDict[s][component] = self.manager.dict()
                 print("[INFO] @ ---- Starting filling histos for component: {} ---- \
                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(component))
 
                 for var, bins_, binsize_, ranges_ in zip(self.histoSetDict["vars"], self.histoSetDict["bins"], self.histoSetDict["binsize"], self.histoSetDict["ranges"]) :
                     nt = (paths.split("/ntuple_")[1]).split(".root")[0]
-                    #self.baseDict[s][component].update(self.retrieveHisto( s+"_"+component, [paths], nt, var, bins_, binsize_, ranges_, self.histoSetDict["lumi"], self.histoSetDict["cut"]))
-                    self.fileList[idx]["histo"] = self.retrieveHisto( s+"_"+component, [paths], nt, var, bins_, binsize_, ranges_, self.histoSetDict["lumi"], self.histoSetDict["cut"]).items()[0][1]
+                    curr_hist[component][var] = self.retrieveHisto( s+"_"+component, [paths], nt, var, bins_, binsize_, ranges_, self.histoSetDict["lumi"], self.histoSetDict["cut"]).items()[0][1]
                     
-
-            
             elif self.histoSetDict["fillMissing"]:
-                #self.baseDict[s][component] = {}
-                #self.baseDict[s][component] = self.manager.dict()
                 print("sono dentro")
                 print("[WARNING] Missing component for component {} but fillMissing = 1 so filling it with a 0 content histo ...".format(component))
                 print("[INFO] @ ---- Starting filling histos for component: {} ---- \
                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(component))
 
                 for var, bins_, binsize_, ranges_ in zip(self.histoSetDict["vars"], self.histoSetDict["bins"], self.histoSetDict["binsize"], self.histoSetDict["ranges"]) :
-                    #self.baseDict[s][component].update(self.retrieveDummy( s+"_"+component, var, bins_, binsize_, ranges_))
-                    self.fileList[idx]["histo"] = self.retrieveDummy( s+"_"+component, var, bins_, binsize_, ranges_)
-        print(self.fileList)
-    # def runWorker(self):
-    #     print("Run worker")
-    #     self.run_event.set() 
-    #     return 
+                    curr_hist[component][var] = self.retrieveDummy( s+"_"+component, var, bins_, binsize_, ranges_)
+
+            self.histos[s] = curr_hist
+        
 
     def isRunning(self):
         return self.run_event.is_set()

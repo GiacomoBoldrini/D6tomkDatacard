@@ -11,7 +11,6 @@ class WorkerLeader():
         self.file_dict = file_dict
         self.nWorkers = nWorkers
         self.histos = []
-        self.manager = Manager()
 
     def setVars(self, vars):
         self.vars = vars 
@@ -37,9 +36,6 @@ class WorkerLeader():
     def setCut(self, cut):
         self.cut = cut 
 
-    # def setBaseDict(self, baseDict ):
-    #     self.baseDict = baseDict 
-
     def setBaseDict(self, baseDictKeys ):
         self.baseDictKeys = baseDictKeys
         self.baseDict = {}
@@ -53,13 +49,12 @@ class WorkerLeader():
         print("---> nWorkers: {}".format(self.nWorkers))
         k = self.file_dict.keys() #{'inWW_cHl3': {'LI_cHl3': ['path'] }, 'QU_cHl3': ['path'], 'SM': ['path']}, 'inWW_cHl1': ...}
 
-        self.flattened = self.manager.list()
-        #flattened = []
+        self.flattened = []
         id_ = 0
         for key in self.file_dict.keys(): #[inWW_cHl3, inWW_cHl1, ...]
             for comp in self.file_dict[key].keys(): # ['LI_cHl3', 'QU_cHl3', 'SM']
                 for path in self.file_dict[key][comp]:
-                    self.flattened.append(self.manager.dict({'idx': id_, 's': key, 'comp': comp, 'path': path}))
+                    self.flattened.append({'idx': id_, 's': key, 'comp': comp, 'path': path})
                     id_ += 1
 
 
@@ -67,12 +62,7 @@ class WorkerLeader():
 
         if step * self.nWorkers < len(self.flattened): step+=1 
 
-        self.k_split = self.manager.list([self.flattened[i:i+step] for i in range(0, len(self.flattened), step)]) # nWorker lists with file components
-
-        # print(self.baseDict)
-        # for i in self.flattened:
-        #     self.baseDict[i["s"]][i["comp"]] = {}
-            
+        self.k_split = [self.flattened[i:i+step] for i in range(0, len(self.flattened), step)] # nWorker lists with file components
         
         self.histoSetDict = {
             'vars': self.vars,
@@ -87,10 +77,8 @@ class WorkerLeader():
 
         self.workers = []
 
-        for fl in k_split:
+        for fl in self.k_split:
             self.workers.append(Worker(fl, self.histoSetDict))
-
-        #for i in self.workers: i.start()
 
         print("----> INFO: Workers Ready")
 
@@ -101,8 +89,8 @@ class WorkerLeader():
         
         for w in self.workers:
             #w.runWorker()
-            w.start()
-        
+            p = w.start()
+
         for w in self.workers:
             w.join()
 
@@ -110,20 +98,17 @@ class WorkerLeader():
         
         print("---> INFO: FINISHED FILLING")
 
-        print(self.k_split)
-
         print("Took {:0.4f} seconds".format(stop-start))
 
     def joinWorkerDicts(self):
         d = {}
-        print(self.histos)
-        for entry in self.histos:
-            for key in entry.keys():
-                if key not in d.keys(): d[key] = []
-                for c in entry[key].keys() : 
-                    if c not in d[key].keys(): d[key][c] = {}
-                    for v in entry[key][c].keys():
-                        if v not in d[key][c].keys(): d[key][c][v] = entry[key][c][v]
+        for worker in self.workers:
+            fl = worker.histos
+            for key in fl.keys():
+                if key not in d.keys(): d[key] = {}
+
+                for component in fl[key].keys():
+                    if component not in d[key].keys(): d[key][component] = fl[key][component]
 
         return d
 

@@ -237,6 +237,8 @@ if __name__ == "__main__":
                         hMaj.Write(component)
                     #takes care of op1_op2 or op2_op1 differences
                     elif "histo_sm_lin_quad_mixed_" + "_".join(ops[::-1]) in compMin:
+                        print("SONO NELL'ELIF")
+                        print("histo_sm_lin_quad_mixed_" + "_".join(ops[::-1]))
                         if component not in  commonComponents: commonComponents.append(component)
                         hMaj = deepcopy( fMaj.Get(majGet + "/" + var + "/" + component) )
                         hMin = deepcopy( fMin.Get(minGet + "/" + var + "/" + "histo_sm_lin_quad_mixed_" + "_".join(ops[::-1])) )
