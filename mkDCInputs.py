@@ -64,6 +64,13 @@ def makeHistos(config, file_dict, nThreads):
 
     dummies = []
     if config.has_option("variables", "makeDummy"): dummies = config.getlist("variables", "makeDummy")
+    
+    # expand file list to include the dummies
+    for component in file_dict.keys():
+        for d in dummies:
+            file_dict[component][d] = []
+
+    
 
     if vars_[0] != "*" and len(vars_) != len(bins) or len(vars_) != len(ranges) or len(vars_) != len(binsize):
         sys.exit("[ERROR] var names ({}) and bins({})/binsize({})/xranges({}) do not match. Ignore or take action ...".format(len(vars_),len(bins), len(binsize),len(ranges)))
@@ -72,7 +79,7 @@ def makeHistos(config, file_dict, nThreads):
     if config.has_option("cuts", "normalcuts"): cut = makeCut(config)    
 
 
-    WL = WorkerLeader(file_dict, nWorkers=nThreads)
+    WL = WorkerLeader(file_dict, nWorkers=nThreads, dum = dummies)
     WL.setVars(vars_)
     WL.setBins(bins)
     WL.setBinSize(binsize)

@@ -155,13 +155,12 @@ class Worker(multiprocessing.Process):
                     curr_hist[component][var] = self.retrieveHisto( s+"_"+component, [paths], nt, var, bins_, binsize_, ranges_, self.histoSetDict["lumi"], self.histoSetDict["cut"]).items()[0][1]
                     
             elif self.histoSetDict["fillMissing"]:
-                print("sono dentro")
                 print("[WARNING] Missing component for component {} but fillMissing = 1 so filling it with a 0 content histo ...".format(component))
                 print("[INFO] @ ---- Starting filling histos for component: {} ---- \
                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(component))
 
                 for var, bins_, binsize_, ranges_ in zip(self.histoSetDict["vars"], self.histoSetDict["bins"], self.histoSetDict["binsize"], self.histoSetDict["ranges"]) :
-                    curr_hist[component][var] = self.retrieveDummy( s+"_"+component, var, bins_, binsize_, ranges_)
+                    curr_hist[component][var] = self.retrieveDummy( s+"_"+component, var, bins_, binsize_, ranges_).items()[0][1]
 
             self.histos[s] = curr_hist
         

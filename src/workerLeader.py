@@ -6,10 +6,11 @@ from multiprocessing import Manager
 
 class WorkerLeader():
 
-    def __init__(self, file_dict, nWorkers=1):
+    def __init__(self, file_dict, nWorkers=1, dum=[]):
 
         self.file_dict = file_dict
         self.nWorkers = nWorkers
+        self.dum = dum
         self.histos = []
 
     def setVars(self, vars):
@@ -57,6 +58,11 @@ class WorkerLeader():
                     self.flattened.append({'idx': id_, 's': key, 'comp': comp, 'path': path})
                     id_ += 1
 
+                #dummy!
+                if len(self.file_dict[key][comp]) == 0:
+                    self.flattened.append({'idx': id_, 's': key, 'comp': comp, 'path': ''})
+                    id_ += 1
+
 
         step = len(self.flattened) / self.nWorkers
 
@@ -73,6 +79,7 @@ class WorkerLeader():
             'lumi': self.lumi,
             'fillMissing': self.fillMissing_,
             'cut': self.cut,
+            'dummies': self.dum,
         }
 
         self.workers = []
