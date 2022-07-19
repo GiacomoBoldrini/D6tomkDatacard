@@ -25,10 +25,12 @@ class Worker():
     def mkLogHisto(self, name, b, low, up):
 
         #low = 0 is not admiitted
-        if low == 0: low = sys.float_info.min
         if low < 0:
             sys.exit("[ERROR] Log scale in a negative range. Check .cfg ...")
+
+        if low  < 1.: low = 1.
         edges = np.logspace(mt.log(low,10), mt.log(up,10), b+1)
+
         return (name, name, b, edges)
 
     def mkFixHisto(self, name, b, low, up):
