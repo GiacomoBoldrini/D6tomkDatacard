@@ -1,7 +1,4 @@
-import os
 import sys
-import stat
-from array import array
 from configparser import ConfigParser
 import argparse
 from glob import glob
@@ -10,11 +7,10 @@ from copy import deepcopy
 from itertools import combinations
 import math as mt
 from makeDummies import *
-import numpy as np
 import Utils # This is needed to load EFT shape makers
 from Utils.dcInputGeneralUtils import * # This is needed to load general utilities functions
 from Utils.dcInputHistoUtils import * # This is needed to load general histogram functions
-from src.workerLeader import WorkerLeader
+from workerLeader import WorkerLeader
 
 def prettyPrintConfig(config, file_dict):
 
@@ -62,6 +58,11 @@ def makeHistos(config, file_dict, nThreads):
     fillMissing_ = 0
     if config.has_option("eft", "fillMissing"): fillMissing_ = config.get("eft", "fillMissing")
 
+    #load user defined variables
+    cppvars = []
+    if config.has_option("variables", "external"): 
+        execfile(config.get("variables", "external"))
+
     dummies = []
     if config.has_option("variables", "makeDummy"): dummies = config.getlist("variables", "makeDummy")
     
@@ -76,11 +77,14 @@ def makeHistos(config, file_dict, nThreads):
         sys.exit("[ERROR] var names ({}) and bins({})/binsize({})/xranges({}) do not match. Ignore or take action ...".format(len(vars_),len(bins), len(binsize),len(ranges)))
 
     cut = "1==1"
-    if config.has_option("cuts", "normalcuts"): cut = makeCut(config)    
+    if config.has_option("cuts", "normalcuts"): cut = makeCut(config) 
+    if config.has_option("cuts", "cutsfile"): cut = makeCut(config, type="cutsfile")    
+
 
 
     WL = WorkerLeader(file_dict, nWorkers=nThreads, dum = dummies)
     WL.setVars(vars_)
+    WL.setCppVars(cppvars)
     WL.setBins(bins)
     WL.setBinSize(binsize)
     WL.setRanges(ranges)
@@ -92,9 +96,7 @@ def makeHistos(config, file_dict, nThreads):
 
     WL.initializeWorkers()
 
-    WL.startWorkers()
-
-    base_histos = WL.joinWorkerDicts()
+    base_histos = WL.startWorkers()
     
     base_histos = invertHistoDict(base_histos)
     

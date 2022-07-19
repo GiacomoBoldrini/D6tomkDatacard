@@ -12,8 +12,8 @@ def mkdir(path):
     return 
 
 
-def makeCut(config):
-    n_cut = config.getlist("cuts", "normalcuts")
+def makeCut(config, type="normalcuts"):
+    n_cut = config.getlist("cuts", type)
     return " && ".join(cut for cut in n_cut)
 
 def makeExecRunt(model, process, config, outdir):
