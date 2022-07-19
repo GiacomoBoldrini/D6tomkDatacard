@@ -57,6 +57,12 @@ double mV(std::vector<ROOT::Math::PxPyPzEVector> pjs, std::pair<int, int> mjj_id
 ROOT.gInterpreter.Declare('''
 double detajj(std::vector<ROOT::Math::PxPyPzEVector> pjs, std::pair<int, int> mjj_idx) {
 
+    return std::abs(pjs.at(mjj_idx.first).Eta() - pjs.at(mjj_idx.second).Eta());
+}
+''')
+
+ROOT.gInterpreter.Declare('''
+double dRjl(std::vector<ROOT::Math::PxPyPzEVector> pjs, std::pair<int, int> mjj_idx) {
     return std::sqrt(std::pow(pjs.at(mjj_idx.first).Eta() - pjs.at(mjj_idx.second).Eta(), 2) + std::pow(pjs.at(mjj_idx.first).Phi() - pjs.at(mjj_idx.second).Phi(), 2));
 }
 ''')
