@@ -91,7 +91,7 @@ def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI, pois):
     }
 
     mod = modeltot2w[model]
-    if len(pois) == 0:
+    if pois is None:
        pois = []
        ranges = ":".join("k_"+op+"={},{}".format(opr[op][0],opr[op][1]) for op in ops)
     else:
