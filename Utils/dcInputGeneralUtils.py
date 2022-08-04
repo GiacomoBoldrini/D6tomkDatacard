@@ -202,7 +202,7 @@ def get_var_list(h_dict):
     
     check = True
     for i in range(len(vars_[:-1])):
-        if vars_[i] != vars_[i+1]: check = False
+        if set(vars_[i]) != set(vars_[i+1]): check = False
 
     if check: return vars_[0]
     else: sys.exit("[ERROR] Vars do not coincide between the various samples. Check .cfg ...")
