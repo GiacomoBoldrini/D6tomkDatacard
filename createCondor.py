@@ -91,7 +91,7 @@ def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI, pois):
     }
 
     mod = modeltot2w[model]
-    if pois == None:
+    if len(pois) == 0:
        pois = []
        ranges = ":".join("k_"+op+"={},{}".format(opr[op][0],opr[op][1]) for op in ops)
     else:
@@ -112,7 +112,7 @@ def makeT2WFitCondor(path, model, ops, opr, npoints, floatOtherPOI, pois):
     f.write("eval `scram run -sh`\ncd -\n")
     f.write("cp -r {} ./\n".format(path))
 
-    if pois == None:
+    if len(pois) == 0:
         to_w = "text2workspace.py  {}/datacard.txt  -P HiggsAnalysis.AnalyticAnomalousCoupling.AnomalousCoupling{}:analiticAnomalousCoupling{}  -o   model.root \
         --X-allow-no-signal --PO eftOperators={}".format(path, mod, mod, ",".join(op for op in ops))        
         if "alt" in model: to_w += " --PO  eftAlternative"
