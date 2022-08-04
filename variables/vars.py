@@ -62,15 +62,52 @@ double detajj(std::vector<ROOT::Math::PxPyPzEVector> pjs, std::pair<int, int> mj
 ''')
 
 ROOT.gInterpreter.Declare('''
-double dRjl(std::vector<ROOT::Math::PxPyPzEVector> pjs, std::pair<int, int> mjj_idx) {
-    return std::sqrt(std::pow(pjs.at(mjj_idx.first).Eta() - pjs.at(mjj_idx.second).Eta(), 2) + std::pow(pjs.at(mjj_idx.first).Phi() - pjs.at(mjj_idx.second).Phi(), 2));
+double dphijj(std::vector<ROOT::Math::PxPyPzEVector> pjs, std::pair<int, int> mjj_idx) {
+
+    return std::abs(pjs.at(mjj_idx.first).Phi() - pjs.at(mjj_idx.second).Phi());
 }
 ''')
 
 ROOT.gInterpreter.Declare('''
-double dphijj(std::vector<ROOT::Math::PxPyPzEVector> pjs, std::pair<int, int> mjj_idx) {
+bool isThereATop(std::vector<ROOT::Math::PxPyPzEVector> pjs, std::pair<int, int> mjj_idx) {
 
-    return std::abs(pjs.at(mjj_idx.first).Phi() - pjs.at(mjj_idx.second).Phi());
+    ROOT::Math::PxPyPzEVector pV(0, 0, 0, 0);
+    for (int i =0; i < pjs.size(); ++i){
+        if (i != mjj_idx.first && i != mjj_idx.second){
+            pV += pjs.at(i);
+        }
+    }
+    
+
+    if ( std::abs( (pV + pjs.at(mjj_idx.first)).M() - 172. ) < 15 || std::abs( (pV + pjs.at(mjj_idx.second)).M() - 172. ) < 15 ) {
+        return 1;
+    }
+    else {
+        return 0;
+    }
+    
+}
+''')
+
+
+ROOT.gInterpreter.Declare('''
+double mtop(std::vector<ROOT::Math::PxPyPzEVector> pjs, std::pair<int, int> mjj_idx) {
+
+    ROOT::Math::PxPyPzEVector pV(0, 0, 0, 0);
+    for (int i =0; i < pjs.size(); ++i){
+        if (i != mjj_idx.first && i != mjj_idx.second){
+            pV += pjs.at(i);
+        }
+    }
+    
+
+    if ( std::abs( (pV + pjs.at(mjj_idx.first)).M() - 172. ) < std::abs( (pV + pjs.at(mjj_idx.second)).M() - 172. )  ) {
+        return (pV + pjs.at(mjj_idx.first)).M();
+        std::cout << (pV + pjs.at(mjj_idx.first)).M() << std::endl;
+    }
+    else {
+        return (pV + pjs.at(mjj_idx.second)).M();
+    }
 }
 ''')
 
@@ -82,3 +119,5 @@ cppvars.append(["mjj", "mjj(pjs, mjj_index)"])
 cppvars.append(["detajj", "detajj(pjs, mjj_index)"])
 cppvars.append(["dphijj", "dphijj(pjs, mjj_index)"])
 cppvars.append(["mV", "mV(pjs, mjj_index)"])
+cppvars.append(["mtop", "mtop(pjs, mjj_index)"])
+cppvars.append(["isThereATop", "isThereATop(pjs, mjj_index)"])
