@@ -76,6 +76,7 @@ class Worker():
         print("Starting ...")
 
         hists = []
+        missing_shapes = []
         
         for idx, f in enumerate(self.fileList):
             s = self.fileList[idx]["s"]
@@ -136,7 +137,8 @@ class Worker():
                 print("[WARNING] Missing component for component {} but fillMissing = 1 so filling it with a 0 content histo ...".format(component))
                 print("[INFO] @ ---- Starting filling histos for component: {} ---- \
                 \n ---------- @ @ @ @ @ @ @ ---------- ".format(component))
-
+               
+                missing_shapes.append(component)
                 for var, bins_, binsize_, ranges_ in zip(self.histoSetDict["vars"], self.histoSetDict["bins"], self.histoSetDict["binsize"], self.histoSetDict["ranges"]) :
                     print("[INFO] @ Filling  {} histo, bins: {}, binsize: {}, range: {} ...".format(var, bins_, binsize_, ranges_))
                     curr_hist[component][var] = self.retrieveDummy( s+"_"+component, var, bins_, binsize_, ranges_).items()[0][1]
@@ -149,6 +151,7 @@ class Worker():
         for k in self.histos.keys():
             for comp in self.histos[k].keys():
                 if comp in self.histoSetDict["dummies"]: continue
+                if comp in missing_shapes: continue
 
                 # retrieve normalization
                 norm = self.norms[k][comp]
