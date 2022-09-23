@@ -180,9 +180,17 @@ def get_model_syntax(comp_name):
           "SM_LI_QU_INT": "sm_lin_quad_mixed_",
           "DATA" : "DATA",
         }
-
+    
+    
     type_ = comp_name.split("_c")[0]
-    newName = d[type_]
+    try:
+        newName = d[type_]
+    except:
+       type_ = comp_name.split("_C")[0]
+       try:
+          newName = d[type_]
+       except:
+          raise ValueError("the operators in {} do not start with c or C. Please change the code or the name".format(comp_name))
 
     if type_ != "SM" and type_ != "DATA": #need to account for operators here
         ops = comp_name.split(type_ + "_")[1]
