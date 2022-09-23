@@ -117,7 +117,7 @@ class Worker(multiprocessing.Process):
                 h = ROOT.TH1D(name + "_" + v, name, b, r[0], r[1])
 
             if bs == "log":
-                h = mkLogHisto(name + "_" + v, b, r[0], r[1])
+                h = self.mkLogHisto(name + "_" + v, b, r[0], r[1])
 
             elif bs != "fix" and bs !=  "log":
                 sys.exit("[ERROR] Choose binsize between log and fix ... ")
