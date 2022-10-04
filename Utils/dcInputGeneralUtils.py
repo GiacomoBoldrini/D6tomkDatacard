@@ -2,7 +2,7 @@ import sys
 import os 
 import stat
 from itertools import combinations
-
+import numpy as np
 
 def mkdir(path):
     try:
