@@ -34,12 +34,12 @@ std::pair<int,int> mjj_index(std::vector<ROOT::Math::PxPyPzEVector> pjs) {
 }
 ''')
 
-ROOT.gInterpreter.Declare('''
-double mjj(std::vector<ROOT::Math::PxPyPzEVector> pjs, std::pair<int, int> mjj_idx) {
+# ROOT.gInterpreter.Declare('''
+# double mjj(std::vector<ROOT::Math::PxPyPzEVector> pjs, std::pair<int, int> mjj_idx) {
 
-    return (pjs.at(mjj_idx.first) + pjs.at(mjj_idx.second)).M();
-}
-''')
+#     return (pjs.at(mjj_idx.first) + pjs.at(mjj_idx.second)).M();
+# }
+# ''')
 
 ROOT.gInterpreter.Declare('''
 double mV(std::vector<ROOT::Math::PxPyPzEVector> pjs, std::pair<int, int> mjj_idx) {
@@ -115,7 +115,7 @@ double mtop(std::vector<ROOT::Math::PxPyPzEVector> pjs, std::pair<int, int> mjj_
 
 cppvars.append(["pjs", "jets(pxj1, pxj2, pxj3, pxj4, pyj1, pyj2, pyj3, pyj4, pzj1, pzj2, pzj3, pzj4, Ej1, Ej2, Ej3, Ej4)"])
 cppvars.append(["mjj_index", "mjj_index(pjs)"])
-cppvars.append(["mjj", "mjj(pjs, mjj_index)"])
+#cppvars.append(["mjj", "mjj(pjs, mjj_index)"])
 cppvars.append(["detajj", "detajj(pjs, mjj_index)"])
 cppvars.append(["dphijj", "dphijj(pjs, mjj_index)"])
 cppvars.append(["mV", "mV(pjs, mjj_index)"])

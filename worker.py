@@ -111,7 +111,11 @@ class Worker():
                 sum_weights_total          = global_numbers.GetBinContent (2) 
                 #sum_weights_selected       = global_numbers.GetBinContent (3) 
                 #NB luminosity in fb, cross-section expected in pb in the config files
-                normalization = cross_section * 1000. * self.histoSetDict["lumi"] / (sum_weights_total)
+                
+                if sum_weights_total != 0:
+                   normalization = cross_section * 1000. * self.histoSetDict["lumi"] / (sum_weights_total)
+                else:
+                   normalization = 0
 
                 curr_norms[component] = normalization
 
